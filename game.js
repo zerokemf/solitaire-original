@@ -258,9 +258,30 @@ class Solitaire {
         this.shuffleDeck(this.gameNumber);
         this.dealCards();
         
+        // 檢查是否可解，不行的話重新洗牌直到找到可解的局
+        this.ensureSolvable();
+        
         this.updateDisplay();
         this.updateInfo();
         this.updateGameNumber();
+    }
+    
+    // 確保當前牌局是可解的
+    ensureSolvable() {
+        const maxAttempts = 100;
+        let attempts = 0;
+        
+        while (!this.isSolvable() && attempts < maxAttempts) {
+            // 不可解，重新洗牌
+            this.createDeck();
+            this.shuffleDeck(this.gameNumber + attempts + 1);
+            this.dealCards();
+            attempts++;
+        }
+        
+        if (attempts > 0) {
+            console.log(`[接龍] 嘗試 ${attempts} 次找到可解局`);
+        }
     }
     
     updateGameNumber() {
