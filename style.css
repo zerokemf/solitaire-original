@@ -4,11 +4,18 @@
     --bg-gradient-end: #063d22;
     --card-bg: #fff;
     --card-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    --card-width: 90px;
-    --card-height: 126px;
-    --card-radius: 8px;
-    --pile-gap: 15px;
-    --tableau-offset: 28px;
+    --card-width: 8vmin;
+    --card-height: 11.2vmin;
+    --card-radius: 0.7vmin;
+    --pile-gap: 1.4vmin;
+    --tableau-offset: 3vmin;
+    --container-width: 90vmin;
+    --font-rank: 1.5vmin;
+    --font-suit: 1.1vmin;
+    --font-center: 3vmin;
+    --font-header: 2vmin;
+    --font-info: 1.3vmin;
+    --font-btn: 1.3vmin;
     --red: #c41e3a;
     --black: #1a1a1a;
     --gold: #ffd700;
@@ -28,98 +35,71 @@ body {
     overflow-x: hidden;
 }
 
-/* === 遊戲容器 === */
 .game-container {
-    max-width: 1000px;
+    max-width: var(--container-width);
     margin: 0 auto;
-    padding: 10px 20px;
+    padding: 1vmin 2vmin;
 }
 
-/* === 頂部資訊列 === */
 .game-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 20px;
+    padding: 0.8vmin 1.5vmin;
     background: var(--header-bg);
-    border-radius: 12px;
-    margin-bottom: 20px;
+    border-radius: 1vmin;
+    margin-bottom: 2vmin;
     backdrop-filter: blur(10px);
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    gap: 1vmin;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .game-header h1 {
     color: white;
-    font-size: 1.5rem;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    font-size: var(--font-header);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .game-info {
     display: flex;
-    gap: 20px;
+    gap: 0.8vmin;
     align-items: center;
     color: white;
-    font-size: 0.95rem;
+    font-size: var(--font-info);
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    justify-content: flex-end;
 }
 
 .btn {
-    padding: 8px 16px;
+    padding: 0.5vmin 0.8vmin;
     border: none;
-    border-radius: 6px;
+    border-radius: 0.5vmin;
     background: linear-gradient(135deg, #4a7c59, #3d6b4a);
     color: white;
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    font-size: var(--font-btn);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .btn:hover {
     background: linear-gradient(135deg, #5a8c69, #4d7b5a);
-    transform: translateY(-1px);
 }
 
-.btn:active {
-    transform: translateY(0);
-}
-
-.btn-large {
-    padding: 12px 32px;
-    font-size: 1.1rem;
-}
-
-/* === 提示按鈕 === */
-.btn-hint {
-    background: linear-gradient(135deg, #5a5a5a, #4a4a4a);
-}
-
-.btn-hint.active {
-    background: linear-gradient(135deg, #d4a012, #b8860b);
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
-}
-
-/* === 提示高亮 === */
-.card.hint-highlight {
-    animation: hintPulse 1.2s ease-in-out infinite;
-    box-shadow: 0 0 15px 3px rgba(255, 215, 0, 0.7) !important;
-}
-
-@keyframes hintPulse {
-    0%, 100% {
-        box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.5);
-    }
-    50% {
-        box-shadow: 0 0 20px 5px rgba(255, 215, 0, 0.8);
-    }
-}
-
-/* === 遊戲區域 === */
 .game-board {
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 2.5vmin;
 }
 
-/* === 上方區域 === */
 .top-area {
     display: flex;
     justify-content: space-between;
@@ -136,7 +116,6 @@ body {
     gap: var(--pile-gap);
 }
 
-/* === 牌堆基礎樣式 === */
 .card-pile {
     width: var(--card-width);
     height: var(--card-height);
@@ -144,22 +123,14 @@ body {
     position: relative;
 }
 
-/* === 發牌堆 === */
 .stock {
     background: linear-gradient(135deg, #2a5a3a, #1a4a2a);
-    border: 3px dashed rgba(255,255,255,0.3);
+    border: 0.3vmin dashed rgba(255,255,255,0.3);
     cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.stock:hover {
-    border-color: rgba(255,255,255,0.5);
-    box-shadow: 0 0 15px rgba(255,255,255,0.2);
 }
 
 .stock.empty {
     background: transparent;
-    border: 3px dashed rgba(255,255,255,0.2);
 }
 
 .stock.empty::after {
@@ -168,22 +139,18 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 2.5rem;
+    font-size: var(--font-center);
     color: rgba(255,255,255,0.4);
 }
 
-/* === 棄牌堆 === */
 .waste {
     background: rgba(255,255,255,0.05);
-    border: 2px dashed rgba(255,255,255,0.15);
-    width: var(--card-width);  /* Draw 1 模式：一張牌寬度 */
+    border: 0.2vmin dashed rgba(255,255,255,0.15);
 }
 
-/* === 基礎牌堆 === */
 .foundation {
     background: rgba(255,255,255,0.08);
-    border: 2px solid rgba(255,255,255,0.2);
-    transition: all 0.2s ease;
+    border: 0.2vmin solid rgba(255,255,255,0.2);
 }
 
 .foundation::after {
@@ -192,21 +159,14 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 2rem;
+    font-size: calc(var(--font-center) * 0.85);
     opacity: 0.3;
 }
 
-/* 有牌時隱藏花色提示 */
 .foundation:has(.card)::after {
     display: none;
 }
 
-.foundation.highlight {
-    box-shadow: 0 0 20px var(--gold);
-    border-color: var(--gold);
-}
-
-/* === Tableau 牌堆 === */
 .tableau {
     display: flex;
     justify-content: space-between;
@@ -215,11 +175,10 @@ body {
 
 .tableau-pile {
     background: rgba(255,255,255,0.03);
-    border: 2px dashed rgba(255,255,255,0.1);
+    border: 0.2vmin dashed rgba(255,255,255,0.1);
     min-height: var(--card-height);
 }
 
-/* === 卡牌樣式 === */
 .card {
     width: var(--card-width);
     height: var(--card-height);
@@ -229,30 +188,24 @@ body {
     cursor: pointer;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     user-select: none;
-    -webkit-user-select: none;
 }
 
 .card:hover:not(.face-down) {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    transform: translateY(-0.3vmin);
+    box-shadow: 0 0.6vmin 1.6vmin rgba(0,0,0,0.4);
 }
 
-/* === 卡牌正面 === */
 .card.face-up {
     background: var(--card-bg);
     box-shadow: var(--card-shadow);
     display: flex;
     flex-direction: column;
-    padding: 6px;
+    padding: 0.6vmin;
+    cursor: grab;
 }
 
-.card.face-up.red {
-    color: var(--red);
-}
-
-.card.face-up.black {
-    color: var(--black);
-}
+.card.face-up.red { color: var(--red); }
+.card.face-up.black { color: var(--black); }
 
 .card-corner {
     display: flex;
@@ -261,34 +214,24 @@ body {
     line-height: 1;
 }
 
-.card-corner.top {
-    align-self: flex-start;
-}
-
+.card-corner.top { align-self: flex-start; }
 .card-corner.bottom {
     align-self: flex-end;
     transform: rotate(180deg);
     margin-top: auto;
 }
 
-.card-rank {
-    font-size: 1.1rem;
-    font-weight: bold;
-}
-
-.card-suit {
-    font-size: 0.9rem;
-}
+.card-rank { font-size: var(--font-rank); font-weight: bold; }
+.card-suit { font-size: var(--font-suit); }
 
 .card-center {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 2.2rem;
+    font-size: var(--font-center);
 }
 
-/* === 卡牌背面 === */
 .card.face-down {
     background: linear-gradient(135deg, #1e3a8a, #1e40af);
     box-shadow: var(--card-shadow);
@@ -298,61 +241,46 @@ body {
 .card.face-down::before {
     content: '';
     position: absolute;
-    inset: 5px;
-    border: 2px solid rgba(255,255,255,0.2);
-    border-radius: calc(var(--card-radius) - 3px);
+    inset: 0.5vmin;
+    border: 0.2vmin solid rgba(255,255,255,0.2);
+    border-radius: calc(var(--card-radius) - 0.3vmin);
     background: repeating-linear-gradient(
         45deg,
         transparent,
-        transparent 5px,
-        rgba(255,255,255,0.05) 5px,
-        rgba(255,255,255,0.05) 10px
+        transparent 0.5vmin,
+        rgba(255,255,255,0.05) 0.5vmin,
+        rgba(255,255,255,0.05) 1vmin
     );
 }
 
-/* === 選中狀態 === */
 .card.selected {
-    box-shadow: 0 0 0 3px var(--gold), 0 8px 20px rgba(0,0,0,0.4);
-    transform: translateY(-5px);
+    box-shadow: 0 0 0 0.3vmin var(--gold), 0 0.8vmin 2vmin rgba(0,0,0,0.4);
+    transform: translateY(-0.5vmin);
     z-index: 1000 !important;
 }
 
-/* === 拖曳狀態 === */
-.card.dragging {
-    opacity: 0.3;
-    transform: scale(0.98);
-}
+.card.dragging { opacity: 0.3; }
 
-.drag-ghost {
-    pointer-events: none;
-}
-
-.drag-ghost .card {
-    cursor: grabbing;
-}
-
-/* === 放置目標高亮 === */
 .drop-highlight {
-    box-shadow: 0 0 20px 5px rgba(255, 215, 0, 0.6) !important;
+    box-shadow: 0 0 2vmin 0.5vmin rgba(255, 215, 0, 0.6) !important;
     border-color: #ffd700 !important;
 }
 
-/* === 飛行卡片（自動完成動畫）=== */
 .flying-card {
     pointer-events: none;
     will-change: transform, left, top;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.4);
 }
 
-.card.face-up {
-    cursor: grab;
+.card.hint-highlight {
+    animation: hintPulse 1.2s ease-in-out infinite;
+    box-shadow: 0 0 1.5vmin 0.3vmin rgba(255, 215, 0, 0.7) !important;
 }
 
-.card.face-up:active {
-    cursor: grabbing;
+@keyframes hintPulse {
+    0%, 100% { box-shadow: 0 0 1vmin 0.2vmin rgba(255, 215, 0, 0.5); }
+    50% { box-shadow: 0 0 2vmin 0.5vmin rgba(255, 215, 0, 0.8); }
 }
 
-/* === 勝利彈窗 === */
 .modal {
     position: fixed;
     inset: 0;
@@ -361,125 +289,69 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 9999;
-    backdrop-filter: blur(5px);
 }
 
-.modal.hidden {
-    display: none;
-}
+.modal.hidden { display: none; }
 
 .modal-content {
     background: linear-gradient(135deg, #1a4a2a, #0d3d1f);
-    padding: 40px 60px;
-    border-radius: 20px;
+    padding: 3vmin 5vmin;
+    border-radius: 1.5vmin;
     text-align: center;
     color: white;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     animation: popIn 0.3s ease;
-    z-index: 10001;
 }
 
 @keyframes popIn {
-    from {
-        transform: scale(0.8);
-        opacity: 0;
-    }
-    to {
-        transform: scale(1);
-        opacity: 1;
-    }
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
 }
 
 .modal-content h2 {
-    font-size: 2rem;
-    margin-bottom: 20px;
+    font-size: 2.2vmin;
+    margin-bottom: 1.5vmin;
     color: var(--gold);
 }
 
-.modal-content p {
-    font-size: 1.1rem;
-    margin-bottom: 10px;
-}
+.modal-content p { font-size: 1.5vmin; margin-bottom: 1vmin; }
+.modal-content .btn { margin-top: 1.5vmin; }
 
-.modal-content .btn {
-    margin-top: 20px;
-}
-
-/* === 死局對話框 === */
-.deadlock-content {
-    background: linear-gradient(135deg, #4a2a2a, #3d1f1f);
-}
-
-.deadlock-content h2 {
-    color: #ff9999;
-}
-
-.deadlock-hint {
-    font-size: 0.95rem;
-    opacity: 0.8;
-    margin-bottom: 20px;
-}
-
-.deadlock-buttons {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-/* === 遊戲選擇對話框 === */
 .modal-content input[type="number"] {
     width: 100%;
-    max-width: 200px;
-    padding: 12px 16px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: 8px;
+    max-width: 15vmin;
+    padding: 1vmin 1.4vmin;
+    border: 0.2vmin solid rgba(255,255,255,0.3);
+    border-radius: 0.6vmin;
     background: rgba(255,255,255,0.1);
     color: white;
-    font-size: 1.1rem;
+    font-size: 1.5vmin;
     text-align: center;
-    margin: 15px 0;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.modal-content input[type="number"]:focus {
-    border-color: var(--gold);
-}
-
-.modal-content input[type="number"]::placeholder {
-    color: rgba(255,255,255,0.5);
-}
-
-.modal-hint {
-    font-size: 0.85rem;
-    opacity: 0.7;
-    margin-bottom: 5px;
+    margin: 1vmin 0;
 }
 
 .modal-buttons {
     display: flex;
-    gap: 12px;
+    gap: 1vmin;
     justify-content: center;
-    margin-top: 20px;
+    margin-top: 1.5vmin;
 }
 
-.btn-primary {
-    background: linear-gradient(135deg, #4a7c59, #3d6b4a);
+.btn-hint { background: linear-gradient(135deg, #5a5a5a, #4a4a4a); }
+.btn-hint.active {
+    background: linear-gradient(135deg, #d4a012, #b8860b);
+    box-shadow: 0 0 1vmin rgba(255, 215, 0, 0.4);
 }
 
-.btn-secondary {
-    background: linear-gradient(135deg, #5a5a5a, #4a4a4a);
-}
+.deadlock-content { background: linear-gradient(135deg, #4a2a2a, #3d1f1f); }
+.deadlock-content h2 { color: #ff9999; }
 
 #game-number {
     background: rgba(255,255,255,0.15);
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.85rem;
+    padding: 0.4vmin 1vmin;
+    border-radius: 0.5vmin;
+    font-size: 1.1vmin;
 }
 
-/* === 勝利動畫容器 === */
 .win-animation-container {
     position: fixed;
     inset: 0;
@@ -488,78 +360,23 @@ body {
     overflow: hidden;
 }
 
-/* === 掉落的卡牌 === */
 .falling-card {
     position: absolute;
     width: var(--card-width);
     height: var(--card-height);
     border-radius: var(--card-radius);
     background: var(--card-bg);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    box-shadow: 0 0.4vmin 1.5vmin rgba(0,0,0,0.4);
     display: flex;
     flex-direction: column;
-    padding: 6px;
+    padding: 0.6vmin;
     pointer-events: none;
-    will-change: transform;
 }
 
-.falling-card.red {
-    color: var(--red);
-}
+.falling-card.red { color: var(--red); }
+.falling-card.black { color: var(--black); }
 
-.falling-card.black {
-    color: var(--black);
-}
-
-/* === 響應式設計 === */
-@media (max-width: 800px) {
-    :root {
-        --card-width: 70px;
-        --card-height: 98px;
-        --tableau-offset: 22px;
-        --pile-gap: 10px;
-    }
-    
-    .game-header {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .game-info {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    
-    .card-rank {
-        font-size: 0.9rem;
-    }
-    
-    .card-suit {
-        font-size: 0.75rem;
-    }
-    
-    .card-center {
-        font-size: 1.6rem;
-    }
-}
-
-@media (max-width: 600px) {
-    :root {
-        --card-width: 48px;
-        --card-height: 67px;
-        --tableau-offset: 18px;
-        --pile-gap: 6px;
-    }
-    
-    .game-container {
-        padding: 8px;
-    }
-    
-    .game-header h1 {
-        font-size: 1.1rem;
-    }
-    
-    .card-center {
-        font-size: 1.2rem;
-    }
+.foundation.highlight {
+    box-shadow: 0 0 2vmin var(--gold);
+    border-color: var(--gold);
 }
