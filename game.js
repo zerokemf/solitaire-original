@@ -111,6 +111,10 @@ class Solitaire {
         // 音效開關
         document.getElementById('sound-toggle').addEventListener('click', () => this.toggleSound());
         
+        // 主題切換（暗色/亮色模式）
+        this.initTheme();
+        document.getElementById('theme-toggle').addEventListener('click', () => this.toggleTheme());
+        
         // 發牌堆點擊
         this.stockEl.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1250,6 +1254,49 @@ class Solitaire {
         // 測試音效（如果開啟）
         if (this.soundEnabled) {
             this.playSound('flip');
+        }
+    }
+    
+    // === 主題系統（暗色/亮色模式）===
+    
+    initTheme() {
+        // 從 localStorage 讀取主題設置
+        const savedTheme = localStorage.getItem('solitaire-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        // 預設亮色模式，如果用戶設置過則使用設置值
+        const isDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+        
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+            this.updateThemeButton(true);
+        } else {
+            document.body.classList.remove('dark-mode');
+            this.updateThemeButton(false);
+        }
+    }
+    
+    toggleTheme() {
+        const isDark = document.body.classList.toggle('dark-mode');
+        this.updateThemeButton(isDark);
+        
+        // 保存設置
+        localStorage.setItem('solitaire-theme', isDark ? 'dark' : 'light');
+        
+        // 播放切換音效
+        if (this.soundEnabled) {
+            this.playSound('flip');
+        }
+    }
+    
+    updateThemeButton(isDark) {
+        const btn = document.getElementById('theme-toggle');
+        if (isDark) {
+            btn.textContent = '☀️ 日間';
+            btn.title = '切換到亮色模式';
+        } else {
+            btn.textContent = '🌙 夜間';
+            btn.title = '切換到暗色模式';
         }
     }
     
