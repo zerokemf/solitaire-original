@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>經典接龍 | Klondike Solitaire</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <h1>🃏 經典接龍</h1>
+            <div class="game-info">
+                <span id="game-number" title="遊戲編號 #1-32000（已驗證可解）">遊戲 #1</span>
+                <span id="moves">移動: 0</span>
+                <span id="timer">時間: 00:00</span>
+                <button id="new-game" class="btn">新遊戲</button>
+                <button id="undo-btn" class="btn">↶ 復原</button>
+                <button id="hint-toggle" class="btn btn-hint" title="顯示可移動的牌">💡 提示</button>
+            </div>
+        </header>
+        
+        <main class="game-board">
+            <!-- 上方區域：發牌堆 + 基礎牌堆 -->
+            <div class="top-area">
+                <div class="stock-waste">
+                    <div id="stock" class="card-pile stock" title="點擊發牌"></div>
+                    <div id="waste" class="card-pile waste"></div>
+                </div>
+                <div class="foundations">
+                    <div id="foundation-0" class="card-pile foundation" data-suit="♠"></div>
+                    <div id="foundation-1" class="card-pile foundation" data-suit="♥"></div>
+                    <div id="foundation-2" class="card-pile foundation" data-suit="♦"></div>
+                    <div id="foundation-3" class="card-pile foundation" data-suit="♣"></div>
+                </div>
+            </div>
+            
+            <!-- 下方區域：7個牌堆 -->
+            <div class="tableau">
+                <div id="tableau-0" class="card-pile tableau-pile"></div>
+                <div id="tableau-1" class="card-pile tableau-pile"></div>
+                <div id="tableau-2" class="card-pile tableau-pile"></div>
+                <div id="tableau-3" class="card-pile tableau-pile"></div>
+                <div id="tableau-4" class="card-pile tableau-pile"></div>
+                <div id="tableau-5" class="card-pile tableau-pile"></div>
+                <div id="tableau-6" class="card-pile tableau-pile"></div>
+            </div>
+        </main>
+        
+        <!-- 勝利畫面 -->
+        <div id="win-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>🎉 恭喜過關！</h2>
+                <p>移動次數: <span id="final-moves">0</span></p>
+                <p>完成時間: <span id="final-time">00:00</span></p>
+                <button id="play-again" class="btn btn-large">再玩一次</button>
+            </div>
+        </div>
+        
+        <!-- 死局警告 -->
+        <div id="deadlock-modal" class="modal hidden">
+            <div class="modal-content deadlock-content">
+                <h2>⚠️ 無路可走</h2>
+                <p>目前沒有可行的移動了。</p>
+                <p class="deadlock-hint">你可以嘗試復原幾步，或開始新遊戲。</p>
+                <div class="deadlock-buttons">
+                    <button id="deadlock-undo" class="btn">↶ 復原一步</button>
+                    <button id="deadlock-new" class="btn btn-primary">新遊戲</button>
+                    <button id="deadlock-close" class="btn btn-secondary">繼續觀察</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 選擇遊戲編號對話框 -->
+        <div id="game-select-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>🎮 選擇遊戲</h2>
+                <p>輸入遊戲編號 (1-32000)，或留空隨機開始</p>
+                <p class="modal-hint">此範圍內的遊戲皆已驗證可解</p>
+                <input type="number" id="game-number-input" min="1" max="32000" placeholder="遊戲編號">
+                <div class="modal-buttons">
+                    <button id="game-select-ok" class="btn btn-primary">開始遊戲</button>
+                    <button id="game-select-cancel" class="btn btn-secondary">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>
