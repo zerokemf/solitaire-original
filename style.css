@@ -48,6 +48,11 @@
     --red: #c41e3a;
     --black: #1a1a1a;
     --gold: #ffd700;
+    
+    /* 花紋圖案 */
+    --bg-pattern: none;
+    --card-back-pattern: none;
+    --pile-pattern: none;
 }
 
 /* === 暗色模式 === */
@@ -70,6 +75,11 @@ body.dark-mode {
     
     --modal-bg: linear-gradient(135deg, #21262d, #161b22);
     --modal-border: rgba(255,255,255,0.1);
+    
+    /* 暗色模式花紋圖案 */
+    --bg-pattern: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjAgMjBoMTB2MTBIMjB6TTUwIDUwaDEwdjEwSDUwem0tMzAgMzBoMTB2MTBIMjB6TTUwIDIwaDEwdjEwSDUweiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA0KSIvPjxwYXRoIGQ9Ik00NSA0MGMtMSAxLTIgMy0yIDUgMCAzIDMgNSA2IDUgMyAwIDYtMiA2LTUgMC0yLTEtNC0yLTVsLTIgMS0yLTIgMi0yLTEtMi0yIDItMi0yLTEgMiAyIDItMiAyeiIgZmlsbD0icmdiYSgyNTQsMjU1LDI1NSwwLjAzKSIvPjwvc3ZnPg==');
+    --card-back-pattern: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE0MCIgdmlld0JveD0iMCAwIDEwMCAxNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNDAiIGZpbGw9IiMxNjFiMjIiIHJ4PSI4Ii8+PHJlY3QgeD0iNSIgeT0iNSIgd2lkdGg9IjkwIiBoZWlnaHQ9IjEzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMSkiIHN0cm9rZS13aWR0aD0iMiIgcng9IjYiLz48cGF0aCBkPSJNMjUgMzVoMTB2MTBIMjV6TTY1IDk1aDEwdjEwSDY1ek0yNSA5NWgxMHYxMEgyNXpNNjUgMzVoMTB2MTBINjV6IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI3MCIgcj0iMjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA2KSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48cGF0aCBkPSJNNTAgNTRjLTQgNC00IDEwIDAgMTQgNCA0IDEwIDQgMTQgMCA0LTQgNC0xMCAwLTE0LTQtNC0xMC00LTE0IDB6IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC4wNykiIHN0cm9rZS13aWR0aD0iMS41Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSI3MciByPSI4IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDgpIi8+PC9zdmc+');
+    --pile-pattern: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTAgMTBoMTB2MTBIMTB6TTMwIDMwaDEwdjEwSDMweiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjMiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3N2Zz4=');
 }
 
 /* === 全局樣式 === */
@@ -81,7 +91,10 @@ body.dark-mode {
 
 body {
     font-family: 'Segoe UI', 'Microsoft JhengHei', -apple-system, sans-serif;
-    background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+    background: 
+        linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end)),
+        var(--bg-pattern);
+    background-size: cover, 60px 60px;
     min-height: 100vh;
     overflow-x: hidden;
     transition: background 0.4s ease;
@@ -206,7 +219,10 @@ body {
 }
 
 .stock {
-    background: var(--stock-bg);
+    background: 
+        var(--stock-bg),
+        var(--pile-pattern);
+    background-size: cover, 30px 30px;
     border: 0.3vmin dashed rgba(255,255,255,0.25);
     cursor: pointer;
     transition: all 0.3s ease;
@@ -229,7 +245,10 @@ body {
 }
 
 .waste, .foundation, .tableau-pile {
-    background: var(--pile-bg);
+    background: 
+        var(--pile-bg),
+        var(--pile-pattern);
+    background-size: cover, 30px 30px;
     border: 0.2vmin dashed var(--pile-border);
     transition: all 0.3s ease;
 }
@@ -323,7 +342,12 @@ body.dark-mode .tableau-pile {
 
 /* 牌背 */
 .card.face-down {
-    background: linear-gradient(135deg, #1e3a8a, #1e40af);
+    background: 
+        linear-gradient(135deg, #1e3a8a, #1e40af),
+        var(--card-back-pattern);
+    background-size: cover, contain;
+    background-position: center;
+    background-repeat: no-repeat;
     box-shadow: var(--card-shadow);
     cursor: default;
 }
@@ -332,15 +356,26 @@ body.dark-mode .tableau-pile {
     content: '';
     position: absolute;
     inset: 0.5vmin;
-    border: 0.2vmin solid rgba(255,255,255,0.2);
+    border: 0.3vmin solid rgba(255,255,255,0.15);
     border-radius: calc(var(--card-radius) - 0.3vmin);
-    background: repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 0.5vmin,
-        rgba(255,255,255,0.05) 0.5vmin,
-        rgba(255,255,255,0.05) 1vmin
-    );
+    background: 
+        repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 0.6vmin,
+            rgba(255,255,255,0.03) 0.6vmin,
+            rgba(255,255,255,0.03) 1.2vmin
+        ),
+        radial-gradient(
+            circle at 30% 30%,
+            rgba(255,255,255,0.05) 0%,
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 70% 70%,
+            rgba(255,255,255,0.05) 0%,
+            transparent 30%
+        );
 }
 
 /* 選取與拖曳 */
