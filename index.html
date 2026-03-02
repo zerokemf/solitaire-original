@@ -22,6 +22,8 @@
                 <button id="zoom-in" class="btn" title="放大">➕</button>
                 <button id="difficulty-toggle" class="btn" title="切換難度">📋 簡單</button>
                 <button id="sound-toggle" class="btn" title="點擊開啟音效">🔇 靜音</button>
+                <button id="stats-btn" class="btn" title="查看統計">📊 統計</button>
+                <button id="challenge-btn" class="btn" title="計時挑戰">⏱️ 挑戰</button>
             </div>
         </header>
         
@@ -86,6 +88,63 @@
                 <div class="modal-buttons">
                     <button id="game-select-ok" class="btn btn-primary">開始遊戲</button>
                     <button id="game-select-cancel" class="btn btn-secondary">取消</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 統計對話框 -->
+        <div id="stats-modal" class="modal hidden">
+            <div class="modal-content glass">
+                <h2>📊 遊戲統計</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-games">0</span>
+                        <span class="stat-label">總遊戲數</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-wins">0</span>
+                        <span class="stat-label">勝利次數</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-winrate">0%</span>
+                        <span class="stat-label">勝率</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-best-time">--:--</span>
+                        <span class="stat-label">最快通關</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-best-moves">-</span>
+                        <span class="stat-label">最少移動</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-streak">0</span>
+                        <span class="stat-label">連勝</span>
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button id="stats-clear" class="btn btn-secondary">清除統計</button>
+                    <button id="stats-close" class="btn btn-primary">關閉</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 計時挑戰對話框 -->
+        <div id="challenge-modal" class="modal hidden">
+            <div class="modal-content glass">
+                <h2>⏱️ 計時挑戰</h2>
+                <p>在限時內完成遊戲，挑战你的最快速度！</p>
+                <div class="challenge-options">
+                    <button class="btn challenge-time" data-minutes="1">1 分鐘</button>
+                    <button class="btn challenge-time" data-minutes="2">2 分鐘</button>
+                    <button class="btn challenge-time" data-minutes="3">3 分鐘</button>
+                    <button class="btn challenge-time" data-minutes="5">5 分鐘</button>
+                </div>
+                <p class="challenge-score hidden" id="challenge-score">
+                    剩餘時間: <span id="challenge-timer">00:00</span>
+                </p>
+                <div class="modal-buttons">
+                    <button id="challenge-close" class="btn btn-secondary">關閉</button>
                 </div>
             </div>
         </div>
