@@ -378,7 +378,7 @@ class Solitaire {
     
     // 確保當前牌局是可解的
     ensureSolvable() {
-        const maxAttempts = 100;
+        const maxAttempts = 500;
         let attempts = 0;
         
         while (!this.isSolvable() && attempts < maxAttempts) {
@@ -431,7 +431,7 @@ class Solitaire {
         }
         
         //額外洗牌回合，增加隨機性
-        for (let i = 0; i < 52; i++) {
+        for (let i = 0; i < 200; i++) {
             const j = random() % 52;
             const k = random() % 52;
             [this.stock[j], this.stock[k]] = [this.stock[k], this.stock[j]];
