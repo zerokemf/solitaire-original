@@ -614,22 +614,11 @@ body.dark-mode .tableau-pile {
     flex-direction: column;
     padding: 0.6vmin;
     pointer-events: none;
-    animation: fallDown 3s ease-in forwards;
+    /* JS 物理引擎會處理動畫，不要用 CSS 動畫覆蓋 */
 }
 
 .falling-card.red { color: var(--red); }
 .falling-card.black { color: var(--black); }
-
-@keyframes fallDown {
-    0% { 
-        transform: translateY(-100px) rotate(0deg); 
-        opacity: 1;
-    }
-    100% { 
-        transform: translateY(100vh) rotate(720deg); 
-        opacity: 0;
-    }
-}
 
 /* 牌堆高亮 */
 .foundation.highlight {
