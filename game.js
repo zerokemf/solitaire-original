@@ -279,7 +279,9 @@ class Solitaire {
     }
     
     getRandomGameNumber() {
-        return Math.floor(Math.random() * this.MAX_GAME) + this.MIN_GAME;
+        // 加入額外的隨機種子，讓每次都更隨機
+        const timeSeed = Date.now() % 1000000;
+        return Math.floor(Math.random() * this.MAX_GAME * (1 + timeSeed / 1000000)) + this.MIN_GAME;
     }
     
     // === 遊戲初始化 ===
@@ -426,6 +428,13 @@ class Solitaire {
         for (let i = this.stock.length - 1; i > 0; i--) {
             const j = random() % (i + 1);
             [this.stock[i], this.stock[j]] = [this.stock[j], this.stock[i]];
+        }
+        
+        //額外洗牌回合，增加隨機性
+        for (let i = 0; i < 52; i++) {
+            const j = random() % 52;
+            const k = random() % 52;
+            [this.stock[j], this.stock[k]] = [this.stock[k], this.stock[j]];
         }
     }
     
