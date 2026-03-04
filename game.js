@@ -486,6 +486,9 @@ class Solitaire {
     // === 死局偵測 ===
     
     checkDeadlock() {
+        // 暫時停用死局偵測，方便測試勝利動畫
+        return;
+        
         // 如果正在自動完成，不檢查死局
         if (this.isAutoCompleting) return;
         
