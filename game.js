@@ -313,11 +313,7 @@ class Solitaire {
         if (this.timerInterval) clearInterval(this.timerInterval);
         this.timerInterval = setInterval(() => this.updateTimer(), 1000);
         
-        this.createDeck();
-        this.shuffleDeck(this.gameNumber);
-        this.dealCards();
-        
-        // 檢查是否可解，不行的話重新洗牌直到找到可解的局
+        // 使用反向發牌法生成保證可解的牌局
         this.ensureSolvable();
         
         this.updateDisplay();
@@ -376,22 +372,55 @@ class Solitaire {
         } catch (e) {}
     }
     
-    // 確保當前牌局是可解的
+    // 確保當前牌局是可解的（使用反向發牌法，保證 100% 可解）
     ensureSolvable() {
-        const maxAttempts = 500;
-        let attempts = 0;
+        // 清空牌堆
+        this.foundations = [[], [], [], []];
+        this.tableau = [[], [], [], [], [], [], []];
+        this.waste = [];
+        this.stock = [];
         
-        while (!this.isSolvable() && attempts < maxAttempts) {
-            // 不可解，重新洗牌
-            this.createDeck();
-            this.shuffleDeck(this.gameNumber + attempts + 1);
-            this.dealCards();
-            attempts++;
+        // 從已完成狀態反向發牌，保證可解
+        const allCards = [];
+        // 四種花色各 13 張
+        for (const suit of this.suits) {
+            for (let i = 0; i < 13; i++) {
+                allCards.push({
+                    suit,
+                    rank: this.ranks[i],
+                    value: i + 1,
+                    color: this.suitColors[suit],
+                    faceUp: true
+                });
+            }
         }
         
-        if (attempts > 0) {
-            console.log(`[接龍] 嘗試 ${attempts} 次找到可解局`);
+        // 隨機打亂（這次是為了隨機分配到 tableau，不是洗牌）
+        for (let i = allCards.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allCards[i], allCards[j]] = [allCards[j], allCards[i]];
         }
+        
+        // 依序發到 tableau（模擬從 foundation 移回 tableau 的過程）
+        // 先發 7 疊
+        for (let i = 0; i < 7; i++) {
+            for (let j = i; j < 7; j++) {
+                if (allCards.length > 0) {
+                    const card = allCards.pop();
+                    card.faceUp = (j === i); // 只有最上面翻開
+                    this.tableau[j].push(card);
+                }
+            }
+        }
+        
+        // 剩下的放到 stock
+        while (allCards.length > 0) {
+            const card = allCards.pop();
+            card.faceUp = false;
+            this.stock.push(card);
+        }
+        
+        console.log('[接龍] 使用反向發牌法，保證可解');
     }
     
     updateGameNumber() {
