@@ -1830,11 +1830,12 @@ class Solitaire {
             // 勝利音效
             this.playSound('win');
             
-            // 播放勝利動畫（但關閉勝利彈窗，讓玩家自行決定）
-            this.playWinAnimation();
-            // document.getElementById('final-moves').textContent = this.moves;
-            // document.getElementById('final-time').textContent = this.formatTime(this.seconds);
-            // document.getElementById('win-modal').classList.remove('hidden');
+            // 播放勝利動畫
+            this.playWinAnimation().then(() => {
+                document.getElementById('final-moves').textContent = this.moves;
+                document.getElementById('final-time').textContent = this.formatTime(this.seconds);
+                document.getElementById('win-modal').classList.remove('hidden');
+            });
         }
     }
     
