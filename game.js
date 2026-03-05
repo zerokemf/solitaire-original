@@ -372,146 +372,45 @@ class Solitaire {
         } catch (e) {}
     }
     
-    // 確保當前牌局是可解的（使用真正的反向發牌法）
+    // 確保當前牌局是可解的（標準發牌 + 求解器驗證）
     ensureSolvable() {
-        // 清空牌堆
-        this.foundations = [[], [], [], []];
-        this.tableau = [[], [], [], [], [], [], []];
-        this.waste = [];
-        this.stock = [];
+        let maxAttempts = 100;
         
-        // 建立一副牌（從已完成的狀態開始）
-        const allCards = [];
-        for (const suit of this.suits) {
-            for (let i = 0; i < 13; i++) {
-                allCards.push({
-                    suit,
-                    rank: this.ranks[i],
-                    value: i + 1,
-                    color: this.suitColors[suit],
-                    faceUp: true
-                });
-            }
-        }
-        
-        // 隨機打亂（這次是為了隨機分配到 tableau，不是洗牌）
-        for (let i = allCards.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [allCards[i], allCards[j]] = [allCards[j], allCards[i]];
-        }
-        
-        // 模擬從完成狀態反向移動到 tableau
-        // 先把所有牌放到 foundation（模擬完成的狀態）
-        const foundations = [[], [], [], []];
-        for (let i = 0; i < 4; i++) {
-            const suit = this.suits[i];
-            for (let v = 1; v <= 13; v++) {
-                const card = allCards.find(c => c.suit === suit && c.value === v);
-                if (card) {
-                    foundations[i].push(card);
-                }
-            }
-        }
-        
-        // 從 foundation 隨機移動一些牌回 tableau（模擬逆向解題）
-        // 這樣產生的牌局一定可解！
-        const tableau = [[], [], [], [], [], [], []];
-        
-        // 隨機移動 28-35 張牌到 tableau（保留 17-24 張在 stock/waste）
-        const numToTableau = 28 + Math.floor(Math.random() * 8); // 28-35張
-        
-        // 追蹤已移動的牌
-        const movedCards = new Set();
-        
-        // 優先移動 K 到空牌堆（這是合法的起始移動）
-        for (let i = 0; i < 7; i++) {
-            // 檢查每個 foundation 是否有 K
-            for (let f = 0; f < 4; f++) {
-                if (foundations[f].length > 0) {
-                    const topCard = foundations[f][foundations[f].length - 1];
-                    if (topCard.value === 13) { // K
-                        // 檢查目標 tableau 是否為空，或是可接受的牌
-                        if (tableau[i].length === 0 || 
-                            (tableau[i].length > 0 && tableau[i][tableau[i].length - 1].faceUp &&
-                             topCard.color !== tableau[i][tableau[i].length - 1].color &&
-                             topCard.value === tableau[i][tableau[i].length - 1].value - 1)) {
-                            tableau[i].push(topCard);
-                            foundations[f].pop();
-                            movedCards.add(`${topCard.suit}${topCard.value}`);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // 繼續隨機移動其他牌到 tableau（按照反向規則）
-        // 反向規則：只能把比 tableau 頂牌小且顏色不同的牌放上去
-        let attempts = 0;
-        while (movedCards.size < numToTableau && attempts < 500) {
-            attempts++;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            // 清空牌堆
+            this.foundations = [[], [], [], []];
+            this.tableau = [[], [], [], [], [], [], []];
+            this.waste = [];
+            this.stock = [];
             
-            // 隨機選擇一個 source foundation
-            const f = Math.floor(Math.random() * 4);
-            if (foundations[f].length === 0) continue;
+            // 建立一副牌
+            this.createDeck();
             
-            const card = foundations[f][foundations[f].length - 1];
-            if (movedCards.has(`${card.suit}${card.value}`)) {
-                foundations[f].pop(); // 跳過已處理的牌
-                continue;
-            }
+            // 標準洗牌
+            this.shuffleDeck(this.gameNumber);
             
-            // 隨機選擇一個 target tableau
-            const t = Math.floor(Math.random() * 7);
-            
-            // 檢查是否符合反向放置規則
-            // 反向：因為我們是從解題逆向回去，所以我們可以把任何牌放到 tableau
-            // 但要符合遊戲規則（只能放 K 到空位，或比頂牌小且不同色的牌）
-            let canPlace = false;
-            if (tableau[t].length === 0) {
-                canPlace = (card.value === 13); // K 才能放空位
-            } else {
-                const topCard = tableau[t][tableau[t].length - 1];
-                if (topCard.faceUp && card.color !== topCard.color && card.value === topCard.value - 1) {
-                    canPlace = true;
+            // 標準發牌（7 堆，第 i 堆 i 張，最上面翻開）
+            for (let i = 0; i < 7; i++) {
+                for (let j = 0; j <= i; j++) {
+                    const card = this.stock.pop();
+                    card.faceUp = (j === i);
+                    this.tableau[i].push(card);
                 }
             }
             
-            if (canPlace) {
-                tableau[t].push(card);
-                foundations[f].pop();
-                movedCards.add(`${card.suit}${card.value}`);
+            // 用求解器檢查是否可解
+            const solvable = this.isSolvable(500); // 限制 500 次迭代快速檢查
+            
+            if (solvable) {
+                console.log(`[接龍] 第 ${attempt + 1} 次嘗試找到可解牌局`);
+                return;
             }
+            
+            console.log(`[接龍] 第 ${attempt + 1} 次嘗試失敗，重新發牌...`);
         }
         
-        // 把 foundation 剩餘的牌放到 stock
-        for (let f = 0; f < 4; f++) {
-            while (foundations[f].length > 0) {
-                const card = foundations[f].pop();
-                card.faceUp = false;
-                this.stock.push(card);
-            }
-        }
-        
-        // 隨機打亂 stock
-        for (let i = this.stock.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [this.stock[i], this.stock[j]] = [this.stock[j], this.stock[i]];
-        }
-        
-        // 把 tableau 的牌翻面（除了最上面的牌）
-        for (let i = 0; i < 7; i++) {
-            for (let j = 0; j < tableau[i].length - 1; j++) {
-                tableau[i][j].faceUp = false;
-            }
-            // 最上面的牌翻開
-            if (tableau[i].length > 0) {
-                tableau[i][tableau[i].length - 1].faceUp = true;
-            }
-            this.tableau[i] = tableau[i];
-        }
-        
-        console.log('[接龍] 使用真正的反向發牌法，確保可解');
+        // 如果 100 次都找不到可解的，就用標準牌局（通常不會發生）
+        console.log('[接龍] 無法找到可解牌局，使用標準牌局');
     }
     
     updateGameNumber() {
