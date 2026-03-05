@@ -534,9 +534,10 @@ class Solitaire {
             
             // 使用求解器檢查是否還有解（減少迭代次數優化性能）
             const solvable = this.isSolvable();
-            if (!solvable) {
-                this.showDeadlockModal();
-            }
+            // 關閉「沒有牌可以移動」的提示，讓玩家自行判斷
+            // if (!solvable) {
+            //     this.showDeadlockModal();
+            // }
         }, 500);
     }
     
@@ -1829,12 +1830,11 @@ class Solitaire {
             // 勝利音效
             this.playSound('win');
             
-            // 播放勝利動畫
-            this.playWinAnimation().then(() => {
-                document.getElementById('final-moves').textContent = this.moves;
-                document.getElementById('final-time').textContent = this.formatTime(this.seconds);
-                document.getElementById('win-modal').classList.remove('hidden');
-            });
+            // 播放勝利動畫（但關閉勝利彈窗，讓玩家自行決定）
+            this.playWinAnimation();
+            // document.getElementById('final-moves').textContent = this.moves;
+            // document.getElementById('final-time').textContent = this.formatTime(this.seconds);
+            // document.getElementById('win-modal').classList.remove('hidden');
         }
     }
     
