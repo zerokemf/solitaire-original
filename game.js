@@ -930,7 +930,7 @@ class Solitaire {
         }
         
         // 建立卡片視覺
-        const tableauOffset = this.parseCSSValue('--tableau-offset') || 28;
+        const tableauOffset = this.parseCSSValue('--tableau-offset') || 2.5 * Math.min(window.innerWidth, window.innerHeight) / 100;
         
         this.draggedCards.forEach((card, i) => {
             const cardEl = this.createCardElement(card, true);
@@ -2180,7 +2180,8 @@ class Solitaire {
     }
     
     renderTableau() {
-        const tableauOffset = this.parseCSSValue('--tableau-offset') || 28;
+        const cardHeight = this.parseCSSValue('--card-height') || 11.2 * Math.min(window.innerWidth, window.innerHeight) / 100;
+        const tableauOffset = this.parseCSSValue('--tableau-offset') || 2.5 * Math.min(window.innerWidth, window.innerHeight) / 100;
         
         for (let i = 0; i < 7; i++) {
             this.tableauEls[i].innerHTML = '';
@@ -2197,7 +2198,7 @@ class Solitaire {
             });
             
             if (pile.length > 0) {
-                const height = 126 + (pile.length - 1) * tableauOffset;
+                const height = cardHeight + (pile.length - 1) * tableauOffset;
                 this.tableauEls[i].style.height = `${height}px`;
             } else {
                 this.tableauEls[i].style.height = '';
