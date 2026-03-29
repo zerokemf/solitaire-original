@@ -374,21 +374,24 @@ class Solitaire {
     
     // 確保當前牌局是可解的（標準發牌 + 求解器驗證）
     ensureSolvable() {
-        let maxAttempts = 100;
-        
+        let maxAttempts = 50;
+
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            // 每次嘗試使用不同的種子（遊戲編號 + 偏移量）
+            const trySeed = this.gameNumber + attempt;
+
             // 清空牌堆
             this.foundations = [[], [], [], []];
             this.tableau = [[], [], [], [], [], [], []];
             this.waste = [];
             this.stock = [];
-            
+
             // 建立一副牌
             this.createDeck();
-            
-            // 標準洗牌
-            this.shuffleDeck(this.gameNumber);
-            
+
+            // 以不同種子洗牌
+            this.shuffleDeck(trySeed);
+
             // 標準發牌（7 堆，第 i 堆 i 張，最上面翻開）
             for (let i = 0; i < 7; i++) {
                 for (let j = 0; j <= i; j++) {
@@ -397,20 +400,22 @@ class Solitaire {
                     this.tableau[i].push(card);
                 }
             }
-            
+
             // 用求解器檢查是否可解
-            const solvable = this.isSolvable(500); // 限制 500 次迭代快速檢查
-            
+            const solvable = this.isSolvable(1500);
+
             if (solvable) {
-                console.log(`[接龍] 第 ${attempt + 1} 次嘗試找到可解牌局`);
+                // 更新遊戲編號為實際使用的種子
+                this.gameNumber = trySeed;
+                console.log(`[接龍] 第 ${attempt + 1} 次嘗試找到可解牌局 (編號 ${this.gameNumber})`);
                 return;
             }
-            
+
             console.log(`[接龍] 第 ${attempt + 1} 次嘗試失敗，重新發牌...`);
         }
-        
-        // 如果 100 次都找不到可解的，就用標準牌局（通常不會發生）
-        console.log('[接龍] 無法找到可解牌局，使用標準牌局');
+
+        // 如果都找不到可解的，使用最後一次發牌（使用者仍可遊玩）
+        console.log('[接龍] 無法在有限次數內找到可解牌局，使用最後一次發牌');
     }
     
     updateGameNumber() {
@@ -505,29 +510,25 @@ class Solitaire {
     // === 死局偵測 ===
     
     checkDeadlock() {
-        // 暫時停用死局偵測，方便測試勝利動畫
-        return;
-        
         // 如果正在自動完成，不檢查死局
         if (this.isAutoCompleting) return;
-        
+
         // 如果已經贏了，不檢查
         const totalFoundationCards = this.foundations.reduce((sum, f) => sum + f.length, 0);
         if (totalFoundationCards === 52) return;
-        
+
         // 防止頻繁檢查（debounce）
         if (this.deadlockCheckPending) return;
         this.deadlockCheckPending = true;
-        
+
         setTimeout(() => {
             this.deadlockCheckPending = false;
-            
-            // 使用求解器檢查是否還有解（減少迭代次數優化性能）
+
+            // 使用求解器檢查是否還有解
             const solvable = this.isSolvable();
-            // 關閉「沒有牌可以移動」的提示，讓玩家自行判斷
-            // if (!solvable) {
-            //     this.showDeadlockModal();
-            // }
+            if (!solvable) {
+                this.showDeadlockModal();
+            }
         }, 500);
     }
     
@@ -535,8 +536,7 @@ class Solitaire {
      * 接龍求解器 - 使用深度限制搜索判斷是否可解
      * 回傳 true 表示可能有解，false 表示確定無解
      */
-    isSolvable() {
-        const maxIterations = 800; // 減少迭代次數提升性能
+    isSolvable(maxIterations = 2000) {
         let iterations = 0;
         
         // 狀態緩存，避免重複搜索
@@ -648,13 +648,17 @@ class Solitaire {
      */
     generateNextStates(state) {
         const nextStates = [];
-        
+        const drawCount = this.drawCount || 1;
+
         // 1. 從 stock 翻牌到 waste
         if (state.stock.length > 0) {
             const newState = this.cloneState(state);
-            const card = newState.stock.pop();
-            card.faceUp = true;
-            newState.waste.push(card);
+            const count = Math.min(drawCount, newState.stock.length);
+            for (let i = 0; i < count; i++) {
+                const card = newState.stock.pop();
+                card.faceUp = true;
+                newState.waste.push(card);
+            }
             nextStates.push(newState);
         } else if (state.waste.length > 0) {
             // 翻轉 waste 回 stock
@@ -773,7 +777,7 @@ class Solitaire {
      */
     canPlaceOnTableauState(card, pile) {
         if (pile.length === 0) {
-            return true; // 空牌堆可以放任何牌
+            return card.value === 13; // 空牌堆只能放 K
         }
         const topCard = pile[pile.length - 1];
         if (!topCard.faceUp) return false;
