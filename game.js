@@ -279,9 +279,7 @@ class Solitaire {
     }
     
     getRandomGameNumber() {
-        // 加入額外的隨機種子，讓每次都更隨機
-        const timeSeed = Date.now() % 1000000;
-        return Math.floor(Math.random() * this.MAX_GAME * (1 + timeSeed / 1000000)) + this.MIN_GAME;
+        return Math.floor(Math.random() * this.MAX_GAME) + this.MIN_GAME;
     }
     
     // === 遊戲初始化 ===
@@ -372,24 +370,22 @@ class Solitaire {
         } catch (e) {}
     }
     
-    // 確保當前牌局是可解的（標準發牌 + 求解器驗證）
+    // 確保當前牌局品質良好（使用品質評分系統取代不可靠的求解器）
     ensureSolvable() {
-        let maxAttempts = 50;
+        const maxAttempts = 200;
+        let bestSeed = this.gameNumber;
+        let bestScore = -Infinity;
+        const GOOD_SCORE = 35; // 品質門檻
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            // 每次嘗試使用不同的種子（遊戲編號 + 偏移量）
             const trySeed = this.gameNumber + attempt;
 
-            // 清空牌堆
+            // 清空並重新發牌
             this.foundations = [[], [], [], []];
             this.tableau = [[], [], [], [], [], [], []];
             this.waste = [];
             this.stock = [];
-
-            // 建立一副牌
             this.createDeck();
-
-            // 以不同種子洗牌
             this.shuffleDeck(trySeed);
 
             // 標準發牌（7 堆，第 i 堆 i 張，最上面翻開）
@@ -401,21 +397,39 @@ class Solitaire {
                 }
             }
 
-            // 用求解器檢查是否可解
-            const solvable = this.isSolvable(1500);
+            // 用品質評分系統評估牌局
+            const score = this.scoreDeal();
 
-            if (solvable) {
-                // 更新遊戲編號為實際使用的種子
+            if (score >= GOOD_SCORE) {
                 this.gameNumber = trySeed;
-                console.log(`[接龍] 第 ${attempt + 1} 次嘗試找到可解牌局 (編號 ${this.gameNumber})`);
+                this.spreadStockCards();
+                console.log(`[接龍] 第 ${attempt + 1} 次嘗試找到優質牌局 (編號 ${this.gameNumber}, 品質分數 ${score})`);
                 return;
             }
 
-            console.log(`[接龍] 第 ${attempt + 1} 次嘗試失敗，重新發牌...`);
+            if (score > bestScore) {
+                bestScore = score;
+                bestSeed = trySeed;
+            }
         }
 
-        // 如果都找不到可解的，使用最後一次發牌（使用者仍可遊玩）
-        console.log('[接龍] 無法在有限次數內找到可解牌局，使用最後一次發牌');
+        // 使用找到的最佳牌局
+        this.gameNumber = bestSeed;
+        this.foundations = [[], [], [], []];
+        this.tableau = [[], [], [], [], [], [], []];
+        this.waste = [];
+        this.stock = [];
+        this.createDeck();
+        this.shuffleDeck(bestSeed);
+        for (let i = 0; i < 7; i++) {
+            for (let j = 0; j <= i; j++) {
+                const card = this.stock.pop();
+                card.faceUp = (j === i);
+                this.tableau[i].push(card);
+            }
+        }
+        this.spreadStockCards();
+        console.log(`[接龍] 使用最佳牌局 (編號 ${this.gameNumber}, 品質分數 ${bestScore})`);
     }
     
     updateGameNumber() {
@@ -424,7 +438,115 @@ class Solitaire {
             el.textContent = `遊戲 #${this.gameNumber}`;
         }
     }
-    
+
+    /**
+     * 評估當前牌局的品質分數
+     * 分數越高代表牌局越好玩（開局有路可走、顏色平衡、牌堆多樣性）
+     */
+    scoreDeal() {
+        let score = 0;
+
+        // 收集所有翻開的牌（初始發牌時每堆只有最上面一張翻開）
+        const faceUpCards = [];
+        for (let i = 0; i < 7; i++) {
+            const pile = this.tableau[i];
+            if (pile.length > 0) {
+                const topCard = pile[pile.length - 1];
+                if (topCard.faceUp) {
+                    faceUpCards.push({ card: topCard, pileIdx: i, pileSize: pile.length });
+                }
+            }
+        }
+
+        // 1. 計算初始可用移動數（牌堆之間 + 送上基座）
+        let moveCount = 0;
+        for (const { card, pileIdx, pileSize } of faceUpCards) {
+            // 檢查是否能移到其他牌堆
+            for (let t = 0; t < 7; t++) {
+                if (t === pileIdx) continue;
+                if (this.canPlaceOnTableauState(card, this.tableau[t])) {
+                    moveCount++;
+                    // 能翻開隱藏牌的移動更有價值
+                    if (pileSize > 1) score += 5;
+                }
+            }
+            // 檢查是否能送上基座
+            for (let f = 0; f < 4; f++) {
+                if (this.canPlaceOnFoundationState(card, this.foundations[f])) {
+                    moveCount++;
+                    score += 10; // 基座移動非常有價值
+                }
+            }
+        }
+        score += moveCount * 8;
+
+        // 2. A 和 2 翻開是好事（能快速開始基座）
+        for (const { card } of faceUpCards) {
+            if (card.value === 1) score += 15;
+            if (card.value === 2) score += 5;
+        }
+
+        // 3. 牌堆頂部幾張牌的可用性（玩家最先抽到的牌）
+        const checkCount = Math.min(5, this.stock.length);
+        for (let i = this.stock.length - 1; i >= this.stock.length - checkCount; i--) {
+            const card = this.stock[i];
+            if (card.value === 1) { score += 8; continue; }
+            for (let t = 0; t < 7; t++) {
+                if (this.canPlaceOnTableauState(card, this.tableau[t])) {
+                    score += 3;
+                    break;
+                }
+            }
+        }
+
+        // 4. 顏色平衡（理想是紅黑各半，3:4 或 4:3）
+        const redCount = faceUpCards.filter(fc => fc.card.color === 'red').length;
+        const blackCount = faceUpCards.filter(fc => fc.card.color === 'black').length;
+        score += Math.min(redCount, blackCount) * 5;
+
+        // 5. 數值多樣性（翻開的牌數值越不同越好）
+        const values = new Set(faceUpCards.map(fc => fc.card.value));
+        score += values.size * 2;
+
+        // 6. 完全沒有移動是大扣分
+        if (moveCount === 0) score -= 25;
+
+        // 7. K 獨佔一個單牌堆浪費空間
+        for (const { card, pileSize } of faceUpCards) {
+            if (card.value === 13 && pileSize === 1) score -= 5;
+        }
+
+        // 8. 牌堆中相鄰同數值牌的懲罰（避免「消了5又來5」）
+        for (let i = 1; i < this.stock.length; i++) {
+            if (this.stock[i].value === this.stock[i - 1].value) score -= 3;
+        }
+
+        return score;
+    }
+
+    /**
+     * 分散牌堆中相鄰的同數值牌，避免玩家連續抽到同數字
+     */
+    spreadStockCards() {
+        const stock = this.stock;
+        if (stock.length <= 2) return;
+
+        // 多輪掃描，把相鄰的同數值牌與較遠的牌交換
+        for (let pass = 0; pass < 3; pass++) {
+            for (let i = 0; i < stock.length - 1; i++) {
+                if (stock[i].value === stock[i + 1].value) {
+                    // 往後找一張不同數值的牌來交換
+                    for (let j = i + 3; j < stock.length; j++) {
+                        if (stock[j].value !== stock[i].value) {
+                            [stock[i + 1], stock[j]] = [stock[j], stock[i + 1]];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     createDeck() {
         this.stock = [];
         for (const suit of this.suits) {
