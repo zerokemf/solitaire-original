@@ -370,12 +370,12 @@ class Solitaire {
         } catch (e) {}
     }
     
-    // 確保當前牌局品質良好（使用品質評分系統取代不可靠的求解器）
+    // 確保當前牌局品質良好（使用品質評分 + 模擬試玩取代不可靠的求解器）
     ensureSolvable() {
-        const maxAttempts = 200;
+        const maxAttempts = 300;
         let bestSeed = this.gameNumber;
         let bestScore = -Infinity;
-        const GOOD_SCORE = 35; // 品質門檻
+        const GOOD_SCORE = 65; // 品質門檻（含模擬分數）
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             const trySeed = this.gameNumber + attempt;
@@ -397,18 +397,20 @@ class Solitaire {
                 }
             }
 
-            // 用品質評分系統評估牌局
-            const score = this.scoreDeal();
+            // 用品質評分 + 模擬試玩評估牌局
+            const dealScore = this.scoreDeal();
+            const simScore = this.simulatePlayability();
+            const totalScore = dealScore + simScore;
 
-            if (score >= GOOD_SCORE) {
+            if (totalScore >= GOOD_SCORE) {
                 this.gameNumber = trySeed;
                 this.spreadStockCards();
-                console.log(`[接龍] 第 ${attempt + 1} 次嘗試找到優質牌局 (編號 ${this.gameNumber}, 品質分數 ${score})`);
+                console.log(`[接龍] 第 ${attempt + 1} 次嘗試找到優質牌局 (編號 ${this.gameNumber}, 品質 ${dealScore} + 模擬 ${simScore} = ${totalScore})`);
                 return;
             }
 
-            if (score > bestScore) {
-                bestScore = score;
+            if (totalScore > bestScore) {
+                bestScore = totalScore;
                 bestSeed = trySeed;
             }
         }
@@ -429,7 +431,7 @@ class Solitaire {
             }
         }
         this.spreadStockCards();
-        console.log(`[接龍] 使用最佳牌局 (編號 ${this.gameNumber}, 品質分數 ${bestScore})`);
+        console.log(`[接龍] 使用最佳牌局 (編號 ${this.gameNumber}, 總分 ${bestScore})`);
     }
     
     updateGameNumber() {
@@ -521,7 +523,206 @@ class Solitaire {
             if (this.stock[i].value === this.stock[i - 1].value) score -= 3;
         }
 
+        // 9. 深埋 A/2/3 的懲罰（死局的首要原因）
+        for (let i = 0; i < 7; i++) {
+            const pile = this.tableau[i];
+            for (let j = 0; j < pile.length - 1; j++) { // 面朝下的牌
+                const card = pile[j];
+                const depth = pile.length - 1 - j; // 上面壓了幾張
+                if (card.value === 1) score -= 14 * depth; // 深埋 A 極度不利
+                if (card.value === 2) score -= 7 * depth;  // 深埋 2
+                if (card.value === 3) score -= 3 * depth;  // 深埋 3
+            }
+        }
+
+        // 10. A 在牌庫中的可及性
+        let aceAccessible = faceUpCards.some(fc => fc.card.value === 1);
+        if (!aceAccessible) {
+            // 檢查牌庫前幾張有沒有 A
+            for (let i = this.stock.length - 1; i >= Math.max(0, this.stock.length - 8); i--) {
+                if (this.stock[i].value === 1) {
+                    const depthFromTop = this.stock.length - 1 - i;
+                    score += (8 - depthFromTop) * 2; // 越靠頂越好
+                    aceAccessible = true;
+                }
+            }
+        }
+        // 如果完全沒有可及的 A，大幅扣分
+        if (!aceAccessible) score -= 30;
+
+        // 11. 確保至少有 2 個初始可移動的牌（不然開局就卡住）
+        if (moveCount < 2) score -= 20;
+
+        // 12. 同色連續牌堆疊在同一堆的懲罰（互相阻擋）
+        for (let i = 0; i < 7; i++) {
+            const pile = this.tableau[i];
+            for (let j = 0; j < pile.length - 1; j++) {
+                for (let k = j + 1; k < pile.length; k++) {
+                    if (pile[j].color === pile[k].color &&
+                        Math.abs(pile[j].value - pile[k].value) === 1) {
+                        score -= 4; // 同色連號在同堆，互相阻擋
+                    }
+                }
+            }
+        }
+
         return score;
+    }
+
+    /**
+     * 模擬貪心試玩，評估牌局的可玩性
+     * 自動執行一系列最優移動，計算能推進多遠
+     */
+    simulatePlayability() {
+        // 深拷貝當前狀態
+        const sim = {
+            stock: this.stock.map(c => ({...c})),
+            waste: [],
+            foundations: [[], [], [], []],
+            tableau: this.tableau.map(p => p.map(c => ({...c})))
+        };
+
+        let foundationCards = 0;
+        let revealed = 0;
+        let stockDraws = 0;
+        const maxRounds = 80;
+
+        for (let round = 0; round < maxRounds; round++) {
+            let moved = false;
+
+            // 優先 1: 將 A/2/3 送上基座
+            for (let t = 0; t < 7 && !moved; t++) {
+                const pile = sim.tableau[t];
+                if (pile.length === 0) continue;
+                const card = pile[pile.length - 1];
+                if (!card.faceUp || card.value > 3) continue;
+                for (let f = 0; f < 4; f++) {
+                    if (this.canPlaceOnFoundationState(card, sim.foundations[f])) {
+                        pile.pop();
+                        sim.foundations[f].push(card);
+                        if (pile.length > 0 && !pile[pile.length - 1].faceUp) {
+                            pile[pile.length - 1].faceUp = true;
+                            revealed++;
+                        }
+                        foundationCards++;
+                        moved = true;
+                        break;
+                    }
+                }
+            }
+            if (moved) continue;
+
+            // 優先 2: 移動牌以翻開隱藏牌
+            for (let t = 0; t < 7 && !moved; t++) {
+                const pile = sim.tableau[t];
+                if (pile.length <= 1) continue;
+                let firstFaceUp = -1;
+                for (let j = 0; j < pile.length; j++) {
+                    if (pile[j].faceUp) { firstFaceUp = j; break; }
+                }
+                if (firstFaceUp <= 0) continue;
+                const card = pile[firstFaceUp];
+                for (let tt = 0; tt < 7; tt++) {
+                    if (tt === t) continue;
+                    if (this.canPlaceOnTableauState(card, sim.tableau[tt])) {
+                        const cards = pile.splice(firstFaceUp);
+                        sim.tableau[tt].push(...cards);
+                        if (pile.length > 0 && !pile[pile.length - 1].faceUp) {
+                            pile[pile.length - 1].faceUp = true;
+                            revealed++;
+                        }
+                        moved = true;
+                        break;
+                    }
+                }
+            }
+            if (moved) continue;
+
+            // 優先 3: 將頂牌送上基座
+            for (let t = 0; t < 7 && !moved; t++) {
+                const pile = sim.tableau[t];
+                if (pile.length === 0) continue;
+                const card = pile[pile.length - 1];
+                if (!card.faceUp) continue;
+                for (let f = 0; f < 4; f++) {
+                    if (this.canPlaceOnFoundationState(card, sim.foundations[f])) {
+                        pile.pop();
+                        sim.foundations[f].push(card);
+                        if (pile.length > 0 && !pile[pile.length - 1].faceUp) {
+                            pile[pile.length - 1].faceUp = true;
+                            revealed++;
+                        }
+                        foundationCards++;
+                        moved = true;
+                        break;
+                    }
+                }
+            }
+            if (moved) continue;
+
+            // 優先 4: 在牌堆之間移動（建立序列）
+            for (let t = 0; t < 7 && !moved; t++) {
+                const pile = sim.tableau[t];
+                if (pile.length === 0) continue;
+                let firstFaceUp = -1;
+                for (let j = 0; j < pile.length; j++) {
+                    if (pile[j].faceUp) { firstFaceUp = j; break; }
+                }
+                if (firstFaceUp < 0) continue;
+                const card = pile[firstFaceUp];
+                // 不移動 K 到空位（除非能翻牌）
+                if (card.value === 13 && firstFaceUp === 0) continue;
+                for (let tt = 0; tt < 7; tt++) {
+                    if (tt === t) continue;
+                    if (this.canPlaceOnTableauState(card, sim.tableau[tt])) {
+                        const cards = pile.splice(firstFaceUp);
+                        sim.tableau[tt].push(...cards);
+                        if (pile.length > 0 && !pile[pile.length - 1].faceUp) {
+                            pile[pile.length - 1].faceUp = true;
+                            revealed++;
+                        }
+                        moved = true;
+                        break;
+                    }
+                }
+            }
+            if (moved) continue;
+
+            // 優先 5: 從牌庫抽牌
+            if (sim.stock.length > 0 && stockDraws < 24) {
+                const card = sim.stock.pop();
+                card.faceUp = true;
+                stockDraws++;
+
+                let placed = false;
+                // 試基座
+                for (let f = 0; f < 4; f++) {
+                    if (this.canPlaceOnFoundationState(card, sim.foundations[f])) {
+                        sim.foundations[f].push(card);
+                        foundationCards++;
+                        placed = true;
+                        break;
+                    }
+                }
+                // 試牌堆
+                if (!placed) {
+                    for (let t = 0; t < 7; t++) {
+                        if (this.canPlaceOnTableauState(card, sim.tableau[t])) {
+                            sim.tableau[t].push(card);
+                            placed = true;
+                            break;
+                        }
+                    }
+                }
+                if (!placed) sim.waste.push(card);
+                moved = true;
+            }
+
+            if (!moved) break;
+        }
+
+        // 根據模擬結果計算分數
+        return foundationCards * 6 + revealed * 4 + Math.min(stockDraws, 15);
     }
 
     /**

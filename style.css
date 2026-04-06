@@ -142,8 +142,8 @@
     --black: #1a1a1a;
     --gold: #ffd700;
     
-    /* 花紋圖案 */
-    --bg-pattern: none;
+    /* 花紋圖案 - 菱形+圓點毛氈紋理 */
+    --bg-pattern: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMzAgMkw1OCAzMEwzMCA1OEwyIDMwWiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDYpIiBzdHJva2Utd2lkdGg9IjAuNSIvPjxwYXRoIGQ9Ik0zMCAxNEw0NiAzMEwzMCA0NkwxNCAzMFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzNSkiIHN0cm9rZS13aWR0aD0iMC41Ii8+PGNpcmNsZSBjeD0iMTUiIGN5PSIxNSIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIvPjxjaXJjbGUgY3g9IjQ1IiBjeT0iMTUiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48Y2lyY2xlIGN4PSIxNSIgY3k9IjQ1IiByPSIxIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIi8+PGNpcmNsZSBjeD0iNDUiIGN5PSI0NSIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIvPjxjaXJjbGUgY3g9IjMwIiBjeT0iMzAiIHI9IjAuOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAzNSkiLz48Y2lyY2xlIGN4PSIwIiBjeT0iMCIgcj0iMC42IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDMpIi8+PGNpcmNsZSBjeD0iNjAiIGN5PSIwIiByPSIwLjYiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48Y2lyY2xlIGN4PSIwIiBjeT0iNjAiIHI9IjAuNiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIvPjxjaXJjbGUgY3g9IjYwIiBjeT0iNjAiIHI9IjAuNiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIvPjwvc3ZnPgo=');
     --card-back-pattern: none;
     --pile-pattern: none;
 }
@@ -169,8 +169,8 @@ body.dark-mode {
     --modal-bg: linear-gradient(135deg, #21262d, #161b22);
     --modal-border: rgba(255,255,255,0.1);
     
-    /* 暗色模式花紋圖案 */
-    --bg-pattern: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjAgMjBoMTB2MTBIMjB6TTUwIDUwaDEwdjEwSDUwem0tMzAgMzBoMTB2MTBIMjB6TTUwIDIwaDEwdjEwSDUweiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA0KSIvPjxwYXRoIGQ9Ik00NSA0MGMtMSAxLTIgMy0yIDUgMCAzIDMgNSA2IDUgMyAwIDYtMiA2LTUgMC0yLTEtNC0yLTVsLTIgMS0yLTIgMi0yLTEtMi0yIDItMi0yLTEgMiAyIDItMiAyeiIgZmlsbD0icmdiYSgyNTQsMjU1LDI1NSwwLjAzKSIvPjwvc3ZnPg==');
+    /* 暗色模式花紋圖案 - 菱形+圓點 */
+    --bg-pattern: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNDAgNEw3NiA0MEw0MCA3Nkw0IDQwWiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDQ1KSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48cGF0aCBkPSJNNDAgMTZMNjQgNDBMNDAgNjRMMTYgNDBaIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiIHN0cm9rZS13aWR0aD0iMC41Ii8+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA0KSIvPjxjaXJjbGUgY3g9IjYwIiBjeT0iMjAiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNCkiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjYwIiByPSIxIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDQpIi8+PGNpcmNsZSBjeD0iNjAiIGN5PSI2MCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA0KSIvPjxjaXJjbGUgY3g9IjQwIiBjeT0iNDAiIHI9IjAuOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIvPjxjaXJjbGUgY3g9IjAiIGN5PSIwIiByPSIwLjYiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMjUpIi8+PGNpcmNsZSBjeD0iODAiIGN5PSIwIiByPSIwLjYiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMjUpIi8+PGNpcmNsZSBjeD0iMCIgY3k9IjgwIiByPSIwLjYiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMjUpIi8+PGNpcmNsZSBjeD0iODAiIGN5PSI4MCIgcj0iMC42IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDI1KSIvPjwvc3ZnPgo=');
     --card-back-pattern: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE0MCIgdmlld0JveD0iMCAwIDEwMCAxNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxNDAiIGZpbGw9IiMxNjFiMjIiIHJ4PSI4Ii8+PHJlY3QgeD0iNSIgeT0iNSIgd2lkdGg9IjkwIiBoZWlnaHQ9IjEzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMSkiIHN0cm9rZS13aWR0aD0iMiIgcng9IjYiLz48cGF0aCBkPSJNMjUgMzVoMTB2MTBIMjV6TTY1IDk1aDEwdjEwSDY1ek0yNSA5NWgxMHYxMEgyNXpNNjUgMzVoMTB2MTBINjV6IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI3MCIgcj0iMjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA2KSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48cGF0aCBkPSJNNTAgNTRjLTQgNC00IDEwIDAgMTQgNCA0IDEwIDQgMTQgMCA0LTQgNC0xMCAwLTE0LTQtNC0xMC00LTE0IDB6IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC4wNykiIHN0cm9rZS13aWR0aD0iMS41Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSI3MciByPSI4IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDgpIi8+PC9zdmc+');
     --pile-pattern: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTAgMTBoMTB2MTBIMTB6TTMwIDMwaDEwdjEwSDMweiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjMiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3N2Zz4=');
 }
@@ -184,10 +184,10 @@ body.dark-mode {
 
 body {
     font-family: 'Segoe UI', 'Microsoft JhengHei', -apple-system, sans-serif;
-    background: 
-        linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end)),
-        var(--bg-pattern);
-    background-size: cover, 60px 60px;
+    background:
+        var(--bg-pattern),
+        linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+    background-size: 60px 60px, cover;
     min-height: 100vh;
     overflow-x: hidden;
     transition: background 0.4s ease;
@@ -344,6 +344,10 @@ body {
     background-size: cover, 30px 30px;
     border: 0.2vmin dashed var(--pile-border);
     transition: all 0.3s ease;
+}
+
+body.dark-mode {
+    background-size: 80px 80px, cover;
 }
 
 body.dark-mode .waste,
