@@ -919,7 +919,7 @@ class Solitaire {
                 if (from.source === 'waste') {
                     this.waste.pop();
                 } else if (from.source === 'tableau') {
-                    this.tableau[from.pileIndex].splice(from.cardIndex);
+                    this.tableau[from.pileIndex].splice(from.cardIndex, draggedCards.length);
                     this.flipTopCard(from.pileIndex);
                 } else if (from.source === 'foundation') {
                     this.foundations[from.pileIndex].pop();
