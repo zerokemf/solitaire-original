@@ -1460,7 +1460,7 @@ class Solitaire {
         } else if (this.dragSource.source === 'foundation') {
             this.foundations[this.dragSource.pileIndex].pop();
         } else if (this.dragSource.source === 'tableau') {
-            this.tableau[this.dragSource.pileIndex].splice(this.dragSource.cardIndex);
+            this.tableau[this.dragSource.pileIndex].splice(this.dragSource.cardIndex, this.draggedCards.length);
             this.flipTopCard(this.dragSource.pileIndex);
         }
         
