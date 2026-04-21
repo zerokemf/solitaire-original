@@ -2,6 +2,8 @@
 
 一個完整的經典接龍（Klondike Solitaire）網頁遊戲，採用原生 JavaScript 開發，無需任何框架或依賴。
 
+▶️ **馬上遊玩：https://zerokemf.github.io/solitaire-original/**
+
 ## ✨ 功能特色
 
 ### 核心遊戲
