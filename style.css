@@ -240,6 +240,15 @@ body {
     transition: background 0.3s ease;
 }
 
+#game-number {
+    cursor: pointer;
+    user-select: none;
+}
+
+#game-number:hover {
+    background: rgba(255,255,255,0.18);
+}
+
 /* === 按鈕樣式 === */
 .btn {
     padding: 0.5vmin 0.9vmin;

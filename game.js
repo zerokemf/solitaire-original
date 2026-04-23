@@ -93,7 +93,9 @@ class Solitaire {
     
     init() {
         this.setupEventListeners();
-        this.newGame();
+        if (!this.autoRestore()) {
+            this.newGame();
+        }
     }
     
     setupEventListeners() {
@@ -142,6 +144,15 @@ class Solitaire {
             btn.addEventListener('click', () => {
                 this.startChallenge(parseInt(btn.dataset.minutes));
             });
+        });
+
+        // 挑戰結果按鈕
+        document.getElementById('challenge-result-new')?.addEventListener('click', () => {
+            document.getElementById('challenge-result-modal').classList.add('hidden');
+            this.newGame();
+        });
+        document.getElementById('challenge-result-close')?.addEventListener('click', () => {
+            document.getElementById('challenge-result-modal').classList.add('hidden');
         });
         
         // 主題切換（暗色/亮色模式）
@@ -195,10 +206,7 @@ class Solitaire {
         
         // 自動存檔
         window.addEventListener('beforeunload', () => this.autoSave());
-        
-        // 嘗試自動恢復
-        this.autoRestore();
-        
+
         // 點擊空牌堆
         this.setupEmptyPileClicks();
         
@@ -216,6 +224,7 @@ class Solitaire {
         });
         
         // 遊戲選擇對話框
+        document.getElementById('game-number')?.addEventListener('click', () => this.showGameSelectModal());
         document.getElementById('game-select-ok')?.addEventListener('click', () => this.startSelectedGame());
         document.getElementById('game-select-cancel')?.addEventListener('click', () => {
             document.getElementById('game-select-modal').classList.add('hidden');
@@ -345,29 +354,34 @@ class Solitaire {
     autoRestore() {
         try {
             const saved = localStorage.getItem('solitaire-save');
-            if (saved) {
-                const data = JSON.parse(saved);
-                // 恢復遊戲狀態
-                this.gameNumber = data.gameNumber;
-                this.stock = data.stock;
-                this.waste = data.waste;
-                this.foundations = data.foundations;
-                this.tableau = data.tableau;
-                this.moves = data.moves;
-                this.seconds = data.seconds;
-                this.history = data.history || [];
-                
-                this.updateDisplay();
-                this.updateInfo();
-                this.updateGameNumber();
-                
-                // 恢復計時器
-                if (this.timerInterval) clearInterval(this.timerInterval);
-                this.timerInterval = setInterval(() => this.updateTimer(), 1000);
-                
-                console.log('[接龍] 遊戲已自動恢復');
-            }
-        } catch (e) {}
+            if (!saved) return false;
+
+            const data = JSON.parse(saved);
+            if (!data || !data.tableau || !data.stock) return false;
+
+            // 恢復遊戲狀態
+            this.gameNumber = data.gameNumber;
+            this.stock = data.stock;
+            this.waste = data.waste;
+            this.foundations = data.foundations;
+            this.tableau = data.tableau;
+            this.moves = data.moves;
+            this.seconds = data.seconds;
+            this.history = data.history || [];
+
+            this.updateDisplay();
+            this.updateInfo();
+            this.updateGameNumber();
+
+            // 恢復計時器
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            this.timerInterval = setInterval(() => this.updateTimer(), 1000);
+
+            console.log('[接龍] 遊戲已自動恢復');
+            return true;
+        } catch (e) {
+            return false;
+        }
     }
     
     // 確保當前牌局品質良好（使用品質評分 + 模擬試玩取代不可靠的求解器）
@@ -1755,10 +1769,15 @@ class Solitaire {
             currentStreak: 0,
             maxStreak: 0
         };
-        
+
         try {
             const saved = localStorage.getItem('solitaire-stats');
-            return saved ? JSON.parse(saved) : defaultStats;
+            if (!saved) return defaultStats;
+            const parsed = JSON.parse(saved);
+            // JSON 會把 Infinity 轉成 null，還原為 Infinity
+            if (parsed.bestTime == null) parsed.bestTime = Infinity;
+            if (parsed.bestMoves == null) parsed.bestMoves = Infinity;
+            return { ...defaultStats, ...parsed };
         } catch (e) {
             return defaultStats;
         }
@@ -1802,7 +1821,8 @@ class Solitaire {
         document.getElementById('stat-best-moves').textContent = 
             this.stats.bestMoves < Infinity ? this.stats.bestMoves : '-';
         document.getElementById('stat-streak').textContent = this.stats.maxStreak;
-        
+        document.getElementById('stat-current-streak').textContent = this.stats.currentStreak;
+
         document.getElementById('stats-modal').classList.remove('hidden');
     }
     
@@ -1816,37 +1836,69 @@ class Solitaire {
     
     // === 挑戰模式 ===
     startChallenge(minutes) {
+        // 清除已存在的挑戰計時器，避免洩漏
+        if (this.challengeInterval) {
+            clearInterval(this.challengeInterval);
+            this.challengeInterval = null;
+        }
+
         this.challengeMode = true;
         this.challengeTime = minutes * 60;
         document.getElementById('challenge-modal').classList.add('hidden');
-        document.getElementById('challenge-score').classList.remove('hidden');
-        
+        const scoreEl = document.getElementById('challenge-score');
+        if (scoreEl) scoreEl.classList.remove('hidden');
+        const timerEl = document.getElementById('challenge-timer');
+        if (timerEl) timerEl.textContent = this.formatTime(this.challengeTime);
+
         // 開始計時
         this.challengeInterval = setInterval(() => {
             this.challengeTime--;
-            document.getElementById('challenge-timer').textContent = this.formatTime(this.challengeTime);
-            
+            if (timerEl) timerEl.textContent = this.formatTime(this.challengeTime);
+
             if (this.challengeTime <= 0) {
                 this.endChallenge(false);
             }
         }, 1000);
-        
+
         this.newGame();
     }
-    
+
     endChallenge(win) {
-        clearInterval(this.challengeInterval);
+        if (this.challengeInterval) {
+            clearInterval(this.challengeInterval);
+            this.challengeInterval = null;
+        }
         this.challengeMode = false;
-        
-        if (win) {
-            alert('🎉 挑戰成功！用時 ' + this.formatTime(this.seconds) + '，移動 ' + this.moves + ' 次！');
-        } else {
-            alert('⏰ 時間到！挑戰失敗，再試一次吧！');
+
+        const scoreEl = document.getElementById('challenge-score');
+        if (scoreEl) scoreEl.classList.add('hidden');
+
+        if (!win) {
             this.recordLoss();
         }
-        
-        document.getElementById('challenge-score').classList.add('hidden');
-        this.newGame();
+
+        // 使用挑戰結果 modal 取代 alert
+        const modal = document.getElementById('challenge-result-modal');
+        const title = document.getElementById('challenge-result-title');
+        const message = document.getElementById('challenge-result-message');
+        if (modal && title && message) {
+            if (win) {
+                title.textContent = '🎉 挑戰成功！';
+                message.textContent = `用時 ${this.formatTime(this.seconds)}，移動 ${this.moves} 次`;
+            } else {
+                title.textContent = '⏰ 時間到！';
+                message.textContent = '挑戰失敗，再試一次吧！';
+            }
+            modal.classList.remove('hidden');
+        } else {
+            // 備援：若 modal 不存在才用 alert
+            if (win) {
+                alert(`🎉 挑戰成功！用時 ${this.formatTime(this.seconds)}，移動 ${this.moves} 次！`);
+            } else {
+                alert('⏰ 時間到！挑戰失敗，再試一次吧！');
+            }
+            this.newGame();
+        }
     }
     
     // === 主題系統（暗色/亮色模式）===
@@ -2088,11 +2140,12 @@ class Solitaire {
     
     getCardElement(info) {
         if (info.source === 'waste') {
-            return this.wasteEl.querySelector('.card');
+            // 頂牌為最後渲染的子元素（drawCount=3 時會顯示多張）
+            return this.wasteEl.lastElementChild;
         } else if (info.source === 'tableau') {
             return this.tableauEls[info.pileIndex].children[info.cardIndex];
         } else if (info.source === 'foundation') {
-            return this.foundationEls[info.pileIndex].querySelector('.card');
+            return this.foundationEls[info.pileIndex].lastElementChild;
         }
         return null;
     }
@@ -2609,6 +2662,11 @@ class Solitaire {
     
     updateInfo() {
         document.getElementById('moves').textContent = `移動: ${this.moves}`;
+        const undoBtn = document.getElementById('undo-btn');
+        if (undoBtn) {
+            undoBtn.textContent = `↶ 復原 (${this.history.length})`;
+            undoBtn.disabled = this.history.length === 0;
+        }
     }
     
     updateTimer() {
