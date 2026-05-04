@@ -861,9 +861,9 @@ class Solitaire {
         setTimeout(() => {
             this.deadlockCheckPending = false;
 
-            // 使用求解器檢查是否還有解
-            const solvable = this.isSolvable();
-            if (!solvable) {
+            // 死局 = 沒有任何合法的下一步（不是「無法獲勝」）。
+            // 用 isSolvable 會把「還能玩但不會贏」的局面誤判成死局。
+            if (!this.hasAnyLegalMove()) {
                 this.showDeadlockModal();
             }
         }, 500);
@@ -1131,12 +1131,7 @@ class Solitaire {
     }
     
     hasAnyLegalMove() {
-        // 這個函數現在只用於快速檢查，真正的死局判斷由 isSolvable 處理
-        // 保留原本的邏輯作為快速篩選
-        if (this.stock.length > 0) return true;
-        if (this.stock.length === 0 && this.waste.length > 0) return true;
-        
-        // 檢查 waste
+        // 1. waste 頂牌可移動
         if (this.waste.length > 0) {
             const card = this.waste[this.waste.length - 1];
             for (let i = 0; i < 4; i++) {
@@ -1146,27 +1141,49 @@ class Solitaire {
                 if (this.canPlaceOnTableau(card, i)) return true;
             }
         }
-        
-        // 檢查 tableau
+
+        // 2. tableau 任一張翻開的牌可移動到 foundation 或其他 tableau
         for (let pileIndex = 0; pileIndex < 7; pileIndex++) {
             const pile = this.tableau[pileIndex];
             for (let cardIndex = 0; cardIndex < pile.length; cardIndex++) {
                 const card = pile[cardIndex];
                 if (!card.faceUp) continue;
-                
+
+                // 只有最頂的單張可上 foundation
                 if (cardIndex === pile.length - 1) {
                     for (let f = 0; f < 4; f++) {
                         if (this.canPlaceOnFoundation(card, f)) return true;
                     }
                 }
-                
+
+                // 整段（card 及其上）可移到其他 tableau
                 for (let targetPile = 0; targetPile < 7; targetPile++) {
                     if (targetPile === pileIndex) continue;
-                    if (this.canPlaceOnTableau(card, targetPile)) return true;
+                    if (this.canPlaceOnTableau(card, targetPile)) {
+                        // 避免「同色 K 整堆搬到空堆」這種無意義移動造成偽陽性
+                        const target = this.tableau[targetPile];
+                        if (target.length === 0 && cardIndex === 0) continue;
+                        return true;
+                    }
                 }
             }
         }
-        
+
+        // 3. stock 或 waste 中（非頂牌）若有任一張未來抽到後可放到任何位置，
+        //    就不算死局（因為玩家可以抽牌或循環）
+        const wasteRest = this.waste.slice(0, Math.max(0, this.waste.length - 1));
+        const drawable = this.stock.concat(wasteRest);
+        for (const c of drawable) {
+            // 假設這張牌會被抽出來面朝上
+            const card = { ...c, faceUp: true };
+            for (let f = 0; f < 4; f++) {
+                if (this.canPlaceOnFoundation(card, f)) return true;
+            }
+            for (let t = 0; t < 7; t++) {
+                if (this.canPlaceOnTableau(card, t)) return true;
+            }
+        }
+
         return false;
     }
     
