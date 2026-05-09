@@ -2684,6 +2684,8 @@ class Solitaire {
             undoBtn.textContent = `↶ 復原 (${this.history.length})`;
             undoBtn.disabled = this.history.length === 0;
         }
+        // 每次狀態變動後自動存檔，避免瀏覽器當機時遺失進度
+        this.autoSave();
     }
     
     updateTimer() {
