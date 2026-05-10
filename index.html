@@ -7,26 +7,45 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="game-container">
-        <header class="game-header">
-            <h1>🃏 經典接龍</h1>
-            <div class="game-info">
-                <span id="game-number" title="遊戲編號 #1-32000（每局皆可解）">遊戲 #1</span>
-                <span id="moves">移動: 0</span>
-                <span id="timer">時間: 00:00</span>
-                <button id="new-game" class="btn">新遊戲</button>
-                <button id="undo-btn" class="btn">↶ 復原 (0)</button>
-                <button id="theme-toggle" class="btn" title="切換明/暗主題">🌙 夜間</button>
-                <button id="hint-toggle" class="btn btn-hint" title="顯示可移動的牌">💡 提示</button>
-                <button id="zoom-out" class="btn" title="縮小">➖</button>
-                <button id="zoom-in" class="btn" title="放大">➕</button>
-                <button id="difficulty-toggle" class="btn" title="切換難度">📋 簡單</button>
-                <button id="sound-toggle" class="btn" title="點擊開啟音效">🔇 靜音</button>
-                <button id="stats-btn" class="btn" title="查看統計">📊 統計</button>
-                <button id="challenge-btn" class="btn" title="計時挑戰">⏱️ 挑戰</button>
+    <header class="game-header">
+        <div class="game-header-inner">
+            <div class="brand">
+                <span class="brand-icon" aria-hidden="true">🃏</span>
+                <h1>經典接龍</h1>
+                <span id="game-number" title="點擊切換遊戲編號 (1-32000，每局皆可解)">#1</span>
             </div>
-        </header>
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-label">移動</span>
+                    <span class="stat-value" id="moves">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">時間</span>
+                    <span class="stat-value" id="timer">00:00</span>
+                </div>
+            </div>
+            <div class="actions">
+                <div class="action-group">
+                    <button id="new-game" class="btn btn-primary" title="開始新遊戲 (N)">新遊戲</button>
+                    <button id="undo-btn" class="btn" title="復原上一步 (Ctrl+Z)">↶ 復原</button>
+                    <button id="hint-toggle" class="btn btn-icon" title="提示可移動的牌 (H)" aria-label="提示">💡</button>
+                </div>
+                <div class="action-group">
+                    <button id="zoom-out" class="btn btn-icon" title="縮小" aria-label="縮小">−</button>
+                    <button id="zoom-in" class="btn btn-icon" title="放大" aria-label="放大">+</button>
+                </div>
+                <div class="action-group">
+                    <button id="difficulty-toggle" class="btn btn-icon" title="難度: 簡單" aria-label="切換難度">📋</button>
+                    <button id="theme-toggle" class="btn btn-icon" title="切換明/暗主題 (T)" aria-label="主題">🌙</button>
+                    <button id="sound-toggle" class="btn btn-icon" title="開啟音效" aria-label="音效">🔇</button>
+                    <button id="stats-btn" class="btn btn-icon" title="查看統計" aria-label="統計">📊</button>
+                    <button id="challenge-btn" class="btn btn-icon" title="計時挑戰" aria-label="挑戰">⏱️</button>
+                </div>
+            </div>
+        </div>
+    </header>
 
+    <div class="game-container">
         <main class="game-board">
             <div class="top-area">
                 <div class="stock-waste">
@@ -164,6 +183,6 @@
         </div>
     </div>
 
-    <script src="game.js?v=20260424"></script>
+    <script src="game.js?v=20260510"></script>
 </body>
 </html>

@@ -451,7 +451,7 @@ class Solitaire {
     updateGameNumber() {
         const el = document.getElementById('game-number');
         if (el) {
-            el.textContent = `遊戲 #${this.gameNumber}`;
+            el.textContent = `#${this.gameNumber}`;
         }
     }
 
@@ -1708,26 +1708,23 @@ class Solitaire {
         const baseGap = 1.4;
         // 間距隨縮放增加，但保持最小間距防止重疊
         const baseOffset = Math.max(3.0, 2.5 * this.zoomLevel);
-        
+
+        // 縮放只影響牌桌（卡片大小、間距、字面字體），不動 header/menu，
+        // 避免按鈕變大後換行造成介面跑版。
         root.style.setProperty('--card-width', `${baseWidth * this.zoomLevel}vmin`);
         root.style.setProperty('--card-height', `${baseHeight * this.zoomLevel}vmin`);
         root.style.setProperty('--card-radius', `${baseRadius * this.zoomLevel}vmin`);
         root.style.setProperty('--pile-gap', `${baseGap * this.zoomLevel}vmin`);
         root.style.setProperty('--tableau-offset', `${baseOffset}vmin`);
-        
-        // 遊戲容器寬度也跟著變大
-        root.style.setProperty('--container-width', `${90 * this.zoomLevel}vmin`);
-        
-        // 花色大小也跟著變
+
+        // 容器寬度也跟著變大，確保牌桌橫向擺得下
+        root.style.setProperty('--container-width', `${Math.min(98, 90 * this.zoomLevel)}vmin`);
+
+        // 卡面內字體
         root.style.setProperty('--font-rank', `${1.5 * this.zoomLevel}vmin`);
         root.style.setProperty('--font-suit', `${1.1 * this.zoomLevel}vmin`);
         root.style.setProperty('--font-center', `${3 * this.zoomLevel}vmin`);
-        
-        // 菜單字體
-        root.style.setProperty('--font-header', `${2 * this.zoomLevel}vmin`);
-        root.style.setProperty('--font-info', `${1.3 * this.zoomLevel}vmin`);
-        root.style.setProperty('--font-btn', `${1.3 * this.zoomLevel}vmin`);
-        
+
         // 重新渲染牌桌以更新間距
         this.renderTableau();
     }
@@ -1751,8 +1748,9 @@ class Solitaire {
     toggleDifficulty() {
         this.drawCount = this.drawCount === 1 ? 3 : 1;
         const btn = document.getElementById('difficulty-toggle');
-        btn.textContent = this.drawCount === 1 ? '📋 簡單' : '📋 困難';
-        btn.title = this.drawCount === 1 ? '目前：一次翻一張' : '目前：一次翻三張';
+        // 用顏色狀態 + tooltip 標示，按鈕本身保持精簡
+        btn.classList.toggle('btn-active', this.drawCount === 3);
+        btn.title = this.drawCount === 1 ? '難度: 簡單（每次翻 1 張）' : '難度: 困難（每次翻 3 張）';
         // 重新渲染廢牌堆
         this.renderWaste();
     }
@@ -1767,8 +1765,9 @@ class Solitaire {
         
         this.soundEnabled = !this.soundEnabled;
         const btn = document.getElementById('sound-toggle');
-        btn.textContent = this.soundEnabled ? '🔊 音效' : '🔇 靜音';
-        btn.title = this.soundEnabled ? '點擊關閉音效' : '點擊開啟音效';
+        btn.textContent = this.soundEnabled ? '🔊' : '🔇';
+        btn.classList.toggle('btn-active', this.soundEnabled);
+        btn.title = this.soundEnabled ? '音效已開啟（點擊關閉）' : '音效已關閉（點擊開啟）';
         
         // 測試音效（如果開啟）
         if (this.soundEnabled) {
@@ -1953,11 +1952,11 @@ class Solitaire {
     updateThemeButton(isDark) {
         const btn = document.getElementById('theme-toggle');
         if (isDark) {
-            btn.textContent = '☀️ 日間';
-            btn.title = '切換到亮色模式';
+            btn.textContent = '☀️';
+            btn.title = '目前: 暗色模式（點擊切換亮色）';
         } else {
-            btn.textContent = '🌙 夜間';
-            btn.title = '切換到暗色模式';
+            btn.textContent = '🌙';
+            btn.title = '目前: 亮色模式（點擊切換暗色）';
         }
     }
     
@@ -2678,19 +2677,20 @@ class Solitaire {
     }
     
     updateInfo() {
-        document.getElementById('moves').textContent = `移動: ${this.moves}`;
+        document.getElementById('moves').textContent = this.moves;
         const undoBtn = document.getElementById('undo-btn');
         if (undoBtn) {
-            undoBtn.textContent = `↶ 復原 (${this.history.length})`;
-            undoBtn.disabled = this.history.length === 0;
+            const count = this.history.length;
+            undoBtn.textContent = count > 0 ? `↶ 復原 (${count})` : '↶ 復原';
+            undoBtn.disabled = count === 0;
         }
         // 每次狀態變動後自動存檔，避免瀏覽器當機時遺失進度
         this.autoSave();
     }
-    
+
     updateTimer() {
         this.seconds++;
-        document.getElementById('timer').textContent = `時間: ${this.formatTime(this.seconds)}`;
+        document.getElementById('timer').textContent = this.formatTime(this.seconds);
     }
     
     formatTime(seconds) {
