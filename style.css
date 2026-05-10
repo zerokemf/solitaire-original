@@ -42,45 +42,7 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.game-header.glass {
-    border-radius: 16px;
-    margin: 10px auto;
-    max-width: var(--container-width);
-    padding: 15px 25px;
-}
-
-/* 按鈕懸停效果 */
-.btn {
-    transition: all 0.2s ease;
-    transform: translateY(0);
-}
-
-.btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.btn:active {
-    transform: translateY(0);
-}
-
-/* 紙牌懸浮效果 */
-.card {
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-}
-
-.card.dragging {
-    transition: none;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-}
-
-/* 提示高亮 */
+/* 提示高亮（基本層；具體 keyframe 見下方） */
 .card.hint-highlight {
     animation: pulse 0.8s infinite;
     box-shadow: 0 0 15px var(--gold), 0 0 30px var(--gold);
@@ -197,108 +159,226 @@ body {
 .game-container {
     max-width: var(--container-width);
     margin: 0 auto;
-    padding: 1.5vmin 2vmin;
+    padding: 18px 2vmin;
 }
 
-/* === Header 優化 === */
+/* === Header（固定 px 大小，獨立於牌桌容器，不受縮放影響） === */
 .game-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1vmin 1.5vmin;
+    width: 100%;
     background: var(--header-bg);
-    border-radius: 1.2vmin;
-    margin-bottom: 2.5vmin;
     backdrop-filter: blur(10px);
-    flex-wrap: wrap;
-    gap: 0.8vmin;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     transition: background 0.4s ease;
-    border: 1px solid rgba(255,255,255,0.05);
 }
 
-.game-header h1 {
-    color: var(--text-primary);
-    font-size: var(--font-header);
-    flex-shrink: 0;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+.game-header-inner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 20px;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
-.game-info {
+/* 品牌區 */
+.brand {
     display: flex;
     align-items: center;
-    gap: 0.6vmin;
-    color: var(--text-secondary);
-    font-size: var(--font-info);
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    gap: 10px;
+    color: var(--text-primary);
 }
 
-.game-info > span {
-    padding: 0.3vmin 0.8vmin;
-    background: rgba(255,255,255,0.08);
-    border-radius: 0.5vmin;
-    transition: background 0.3s ease;
+.brand-icon {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.brand h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    margin: 0;
+    white-space: nowrap;
 }
 
 #game-number {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 8px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    color: var(--text-secondary);
     cursor: pointer;
     user-select: none;
+    transition: all 0.2s ease;
 }
 
 #game-number:hover {
-    background: rgba(255,255,255,0.18);
+    background: rgba(255,215,0,0.15);
+    color: var(--gold);
+    border-color: rgba(255,215,0,0.35);
 }
 
-/* === 按鈕樣式 === */
+/* 統計區（header） */
+.game-header .stats {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+}
+
+.game-header .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    line-height: 1.1;
+}
+
+.game-header .stat-label {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.game-header .stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    min-width: 3ch;
+    text-align: center;
+}
+
+/* 動作區 */
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.action-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.04);
+}
+
+/* === 按鈕（固定 px 尺寸） === */
 .btn {
-    padding: 0.5vmin 0.9vmin;
-    border: none;
-    border-radius: 0.6vmin;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
     background: var(--btn-bg);
     color: var(--text-primary);
     cursor: pointer;
-    font-size: var(--font-btn);
+    font-size: 13px;
+    font-weight: 500;
     white-space: nowrap;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
 }
 
 .btn:hover {
     background: var(--btn-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.25);
 }
 
 .btn:active {
     transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
-.btn-hint { 
-    background: var(--btn-secondary); 
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
-.btn-hint.active {
+
+.btn:disabled:hover {
+    transform: none;
+    background: var(--btn-bg);
+}
+
+/* Icon-only 緊湊按鈕 */
+.btn-icon {
+    width: 32px;
+    padding: 0;
+    font-size: 14px;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.btn-icon:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.08);
+    transform: translateY(-1px);
+}
+
+/* 主要動作（新遊戲）— 強調 */
+.btn-primary {
     background: linear-gradient(135deg, #d4a012, #b8860b);
-    box-shadow: 0 0 1vmin rgba(255, 215, 0, 0.4);
+    color: #fff;
+    border-color: rgba(255,215,0,0.3);
+    font-weight: 600;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
 }
 
-/* 主題切換按鈕 */
-#theme-toggle {
-    font-weight: 600;
-    min-width: 5vmin;
+.btn-primary:hover {
+    background: linear-gradient(135deg, #e3b020, #c4960c);
+    box-shadow: 0 3px 10px rgba(255,215,0,0.25);
+}
+
+/* 啟用狀態的 icon button */
+.btn-icon.active,
+.btn-icon.btn-active {
+    background: rgba(255,215,0,0.18);
+    border-color: rgba(255,215,0,0.35);
+    color: var(--gold);
+    box-shadow: inset 0 0 0 1px rgba(255,215,0,0.15);
+}
+
+.btn-hint.active {
+    background: rgba(255,215,0,0.25);
+    color: var(--gold);
+    box-shadow: inset 0 0 0 1px rgba(255,215,0,0.4), 0 0 8px rgba(255,215,0,0.3);
 }
 
 /* === 遊戲區域 === */
 .game-board {
     display: flex;
     flex-direction: column;
-    gap: 3vmin;
+    gap: 2.4vmin;
+    padding: 2vmin;
+    background: rgba(0,0,0,0.08);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.04);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);
 }
 
 .top-area {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 1vmin 0;
+    padding-bottom: 1vmin;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .stock-waste {
@@ -371,9 +451,16 @@ body.dark-mode .tableau-pile {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: calc(var(--font-center) * 0.85);
-    opacity: 0.25;
-    color: var(--text-secondary);
+    font-size: calc(var(--font-center) * 0.95);
+    opacity: 0.18;
+    color: var(--text-primary);
+    font-weight: 300;
+    transition: opacity 0.3s ease, color 0.3s ease;
+    pointer-events: none;
+}
+
+.foundation:hover::after {
+    opacity: 0.35;
 }
 
 .foundation:has(.card)::after {
@@ -532,64 +619,88 @@ body.dark-mode .tableau-pile {
 
 .modal-content {
     background: var(--modal-bg);
-    padding: 3vmin 5vmin;
-    border-radius: 1.5vmin;
+    padding: 28px 36px;
+    border-radius: 14px;
     text-align: center;
     color: var(--modal-text);
-    animation: popIn 0.3s ease;
+    animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
     border: 1px solid var(--modal-border);
-    box-shadow: 0 2vmin 4vmin rgba(0,0,0,0.5);
-    transition: all 0.4s ease;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+    min-width: 320px;
+    max-width: 90vw;
+    transition: background 0.4s ease;
 }
 
 @keyframes popIn {
-    from { transform: scale(0.85); opacity: 0; }
+    from { transform: scale(0.92); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
 }
 
 .modal-content h2 {
-    font-size: 2.5vmin;
-    margin-bottom: 1.5vmin;
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 14px;
     color: var(--gold);
+    letter-spacing: 0.5px;
 }
 
-.modal-content p { 
-    font-size: 1.6vmin; 
-    margin-bottom: 1.2vmin;
+.modal-content p {
+    font-size: 14px;
+    margin-bottom: 10px;
     color: var(--text-secondary);
+    line-height: 1.6;
 }
 
-.modal-content .btn { 
-    margin-top: 1.5vmin; 
-    font-size: 1.5vmin;
-    padding: 0.8vmin 1.5vmin;
+.modal-hint {
+    font-size: 12px !important;
+    opacity: 0.7;
+}
+
+.modal-content .btn {
+    margin-top: 14px;
+    height: 36px;
+    padding: 0 18px;
+    font-size: 13px;
+}
+
+.btn-large {
+    height: 42px !important;
+    padding: 0 28px !important;
+    font-size: 15px !important;
+    font-weight: 600;
+}
+
+.btn-secondary {
+    background: var(--btn-secondary);
 }
 
 .modal-content input[type="number"] {
     width: 100%;
-    max-width: 18vmin;
-    padding: 1vmin 1.5vmin;
-    border: 0.2vmin solid var(--modal-border);
-    border-radius: 0.6vmin;
+    max-width: 200px;
+    padding: 10px 14px;
+    border: 1px solid var(--modal-border);
+    border-radius: 8px;
     background: rgba(255,255,255,0.08);
     color: var(--text-primary);
-    font-size: 1.6vmin;
+    font-size: 16px;
     text-align: center;
-    margin: 1.2vmin 0;
-    transition: all 0.3s ease;
+    margin: 12px 0;
+    transition: all 0.25s ease;
 }
 
 .modal-content input[type="number"]:focus {
     outline: none;
     border-color: var(--gold);
-    background: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.14);
+    box-shadow: 0 0 0 3px rgba(255,215,0,0.15);
 }
 
 .modal-buttons {
     display: flex;
-    gap: 1vmin;
+    gap: 10px;
     justify-content: center;
-    margin-top: 2vmin;
+    margin-top: 18px;
+    flex-wrap: wrap;
 }
 
 /* 特殊模態框 */
@@ -603,8 +714,14 @@ body.dark-mode .tableau-pile {
 .deadlock-buttons {
     display: flex;
     flex-direction: column;
-    gap: 0.8vmin;
-    margin-top: 1.5vmin;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.deadlock-hint {
+    font-size: 12px !important;
+    opacity: 0.7;
+    margin-bottom: 6px !important;
 }
 
 /* === 勝利動畫 === */
@@ -640,35 +757,50 @@ body.dark-mode .tableau-pile {
 }
 
 /* === 響應式調整 === */
+@media (max-width: 900px) {
+    .game-header-inner {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "brand stats"
+            "actions actions";
+        gap: 10px;
+    }
+    .game-header .brand { grid-area: brand; }
+    .game-header .stats { grid-area: stats; gap: 16px; }
+    .game-header .actions {
+        grid-area: actions;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .game-header .brand h1 { font-size: 16px; }
+}
+
 @media (max-width: 768px) {
     :root {
         --card-width: 10vmin;
         --card-height: 14vmin;
         --pile-gap: 1.8vmin;
-        --container-width: 95vmin;
-        --font-header: 2.5vmin;
-        --font-info: 1.6vmin;
-        --font-btn: 1.6vmin;
+        --container-width: 96vmin;
     }
-    
-    .game-header {
-        flex-direction: column;
-        gap: 1vmin;
-        padding: 1.5vmin;
-    }
-    
-    .game-info {
-        justify-content: center;
-    }
-    
+
     .top-area {
         flex-direction: column;
         gap: 2vmin;
     }
-    
+
     .stock-waste, .foundations {
         justify-content: center;
     }
+
+    .game-header .stat-label { font-size: 9px; }
+    .game-header .stat-value { font-size: 14px; }
+    .btn { height: 30px; font-size: 12px; padding: 0 10px; }
+    .btn-icon { width: 30px; padding: 0; }
+}
+
+@media (max-width: 480px) {
+    .game-header .brand h1 { display: none; }
+    .game-header .stats { gap: 10px; }
 }
 
 /* === 滾動條美化 === */
