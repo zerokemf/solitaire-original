@@ -164,6 +164,23 @@ class Solitaire {
             e.stopPropagation();
             this.drawFromStock();
         });
+
+        // 委派 hover 音效：一張牌一個 listener 太浪費，整個 board 一個就夠
+        // 全域節流 100ms，避免快速掃過卡牌時聲音洪流
+        this.lastHoverSoundAt = 0;
+        if (this.gameBoard) {
+            this.gameBoard.addEventListener('mouseover', (e) => {
+                if (!this.soundEnabled) return;
+                const card = e.target.closest('.card.face-up');
+                if (!card) return;
+                // 只在進入新的卡片時觸發
+                if (e.relatedTarget && card.contains(e.relatedTarget)) return;
+                const now = performance.now();
+                if (now - this.lastHoverSoundAt < 100) return;
+                this.lastHoverSoundAt = now;
+                this.playSound('hover');
+            });
+        }
         
         // 拖曳事件
         document.addEventListener('mousedown', (e) => this.handleMouseDown(e));
@@ -204,8 +221,14 @@ class Solitaire {
             }
         });
         
-        // 自動存檔
-        window.addEventListener('beforeunload', () => this.autoSave());
+        // 自動存檔：關頁面前一定要立即寫，不走 debounce
+        window.addEventListener('beforeunload', () => {
+            if (this._autoSaveTimer) {
+                clearTimeout(this._autoSaveTimer);
+                this._autoSaveTimer = null;
+            }
+            this._writeAutoSave();
+        });
 
         // 點擊空牌堆
         this.setupEmptyPileClicks();
@@ -331,10 +354,17 @@ class Solitaire {
         this.autoSave();
     }
     
-    // 自動存檔
+    // 自動存檔（debounced 500ms，避免快速移動時頻繁同步寫入 localStorage）
     autoSave() {
         if (!this.autoSaveEnabled) return;
-        
+        if (this._autoSaveTimer) return; // 已經排程，等下一輪一起寫
+        this._autoSaveTimer = setTimeout(() => {
+            this._autoSaveTimer = null;
+            this._writeAutoSave();
+        }, 500);
+    }
+
+    _writeAutoSave() {
         try {
             const saveData = {
                 gameNumber: this.gameNumber,
@@ -344,7 +374,7 @@ class Solitaire {
                 tableau: this.tableau,
                 moves: this.moves,
                 seconds: this.seconds,
-                history: this.history.slice(-50) // 只保存最近50步
+                history: this.history.slice(-30)
             };
             localStorage.setItem('solitaire-save', JSON.stringify(saveData));
         } catch (e) {}
@@ -868,238 +898,9 @@ class Solitaire {
             }
         }, 500);
     }
-    
-    /**
-     * 接龍求解器 - 使用深度限制搜索判斷是否可解
-     * 回傳 true 表示可能有解，false 表示確定無解
-     */
-    isSolvable(maxIterations = 2000) {
-        let iterations = 0;
-        
-        // 狀態緩存，避免重複搜索
-        const visitedStates = new Set();
-        
-        // 建立初始狀態
-        const initialState = this.serializeState();
-        
-        // 使用 BFS 搜索
-        const queue = [initialState];
-        
-        while (queue.length > 0 && iterations < maxIterations) {
-            iterations++;
-            const stateStr = queue.shift();
-            
-            // 跳過已訪問的狀態
-            if (visitedStates.has(stateStr)) continue;
-            visitedStates.add(stateStr);
-            
-            // 反序列化狀態
-            const state = this.deserializeState(stateStr);
-            
-            // 檢查是否勝利
-            const foundationTotal = state.foundations.reduce((sum, f) => sum + f.length, 0);
-            if (foundationTotal === 52) {
-                return true; // 找到解！
-            }
-            
-            // 產生所有可能的下一步
-            const nextStates = this.generateNextStates(state);
-            
-            for (const nextState of nextStates) {
-                const nextStateStr = this.serializeStateObj(nextState);
-                if (!visitedStates.has(nextStateStr)) {
-                    queue.push(nextStateStr);
-                }
-            }
-        }
-        
-        // 如果搜索完畢或達到限制，檢查是否還有移動可做
-        // 如果還有狀態沒搜索完，假設可能有解
-        if (queue.length > 0) {
-            return true; // 還有未探索的可能性
-        }
-        
-        return false; // 確定無解
-    }
-    
-    /**
-     * 序列化當前遊戲狀態為字串
-     */
-    serializeState() {
-        return JSON.stringify({
-            stock: this.stock.map(c => `${c.suit}${c.value}${c.faceUp ? 'U' : 'D'}`),
-            waste: this.waste.map(c => `${c.suit}${c.value}`),
-            foundations: this.foundations.map(f => f.map(c => `${c.suit}${c.value}`)),
-            tableau: this.tableau.map(p => p.map(c => `${c.suit}${c.value}${c.faceUp ? 'U' : 'D'}`))
-        });
-    }
-    
-    /**
-     * 序列化狀態物件為字串
-     */
-    serializeStateObj(state) {
-        return JSON.stringify({
-            stock: state.stock.map(c => `${c.suit}${c.value}${c.faceUp ? 'U' : 'D'}`),
-            waste: state.waste.map(c => `${c.suit}${c.value}`),
-            foundations: state.foundations.map(f => f.map(c => `${c.suit}${c.value}`)),
-            tableau: state.tableau.map(p => p.map(c => `${c.suit}${c.value}${c.faceUp ? 'U' : 'D'}`))
-        });
-    }
-    
-    /**
-     * 反序列化狀態字串
-     */
-    deserializeState(stateStr) {
-        const data = JSON.parse(stateStr);
-        
-        const parseCard = (s, includeFace = true) => {
-            const suit = s[0];
-            let valueStr, faceUp;
-            if (includeFace) {
-                faceUp = s.endsWith('U');
-                valueStr = s.slice(1, -1);
-            } else {
-                faceUp = true;
-                valueStr = s.slice(1);
-            }
-            const value = parseInt(valueStr);
-            return {
-                suit,
-                rank: this.ranks[value - 1],
-                value,
-                color: this.suitColors[suit],
-                faceUp
-            };
-        };
-        
-        return {
-            stock: data.stock.map(s => parseCard(s, true)),
-            waste: data.waste.map(s => parseCard(s, false)),
-            foundations: data.foundations.map(f => f.map(s => parseCard(s, false))),
-            tableau: data.tableau.map(p => p.map(s => parseCard(s, true)))
-        };
-    }
-    
-    /**
-     * 產生所有可能的下一個狀態
-     */
-    generateNextStates(state) {
-        const nextStates = [];
-        const drawCount = this.drawCount || 1;
 
-        // 1. 從 stock 翻牌到 waste
-        if (state.stock.length > 0) {
-            const newState = this.cloneState(state);
-            const count = Math.min(drawCount, newState.stock.length);
-            for (let i = 0; i < count; i++) {
-                const card = newState.stock.pop();
-                card.faceUp = true;
-                newState.waste.push(card);
-            }
-            nextStates.push(newState);
-        } else if (state.waste.length > 0) {
-            // 翻轉 waste 回 stock
-            const newState = this.cloneState(state);
-            while (newState.waste.length > 0) {
-                const card = newState.waste.pop();
-                card.faceUp = false;
-                newState.stock.push(card);
-            }
-            nextStates.push(newState);
-        }
-        
-        // 2. 從 waste 移動到 foundation 或 tableau
-        if (state.waste.length > 0) {
-            const card = state.waste[state.waste.length - 1];
-            
-            // 移到 foundation
-            for (let f = 0; f < 4; f++) {
-                if (this.canPlaceOnFoundationState(card, state.foundations[f])) {
-                    const newState = this.cloneState(state);
-                    const movedCard = newState.waste.pop();
-                    newState.foundations[f].push(movedCard);
-                    nextStates.push(newState);
-                }
-            }
-            
-            // 移到 tableau
-            for (let t = 0; t < 7; t++) {
-                if (this.canPlaceOnTableauState(card, state.tableau[t])) {
-                    const newState = this.cloneState(state);
-                    const movedCard = newState.waste.pop();
-                    newState.tableau[t].push(movedCard);
-                    nextStates.push(newState);
-                }
-            }
-        }
-        
-        // 3. 從 tableau 移動
-        for (let t = 0; t < 7; t++) {
-            const pile = state.tableau[t];
-            
-            for (let cardIdx = 0; cardIdx < pile.length; cardIdx++) {
-                const card = pile[cardIdx];
-                if (!card.faceUp) continue;
-                
-                // 最上面的牌可以移到 foundation
-                if (cardIdx === pile.length - 1) {
-                    for (let f = 0; f < 4; f++) {
-                        if (this.canPlaceOnFoundationState(card, state.foundations[f])) {
-                            const newState = this.cloneState(state);
-                            const movedCard = newState.tableau[t].pop();
-                            newState.foundations[f].push(movedCard);
-                            this.flipTopCardState(newState.tableau[t]);
-                            nextStates.push(newState);
-                        }
-                    }
-                }
-                
-                // 移動到其他 tableau（包含其上的所有牌）
-                for (let targetT = 0; targetT < 7; targetT++) {
-                    if (targetT === t) continue;
-                    if (this.canPlaceOnTableauState(card, state.tableau[targetT])) {
-                        const newState = this.cloneState(state);
-                        const movedCards = newState.tableau[t].splice(cardIdx);
-                        newState.tableau[targetT].push(...movedCards);
-                        this.flipTopCardState(newState.tableau[t]);
-                        nextStates.push(newState);
-                    }
-                }
-            }
-        }
-        
-        // 4. 從 foundation 移回 tableau（較少用但合法）
-        for (let f = 0; f < 4; f++) {
-            if (state.foundations[f].length > 0) {
-                const card = state.foundations[f][state.foundations[f].length - 1];
-                for (let t = 0; t < 7; t++) {
-                    if (this.canPlaceOnTableauState(card, state.tableau[t])) {
-                        const newState = this.cloneState(state);
-                        const movedCard = newState.foundations[f].pop();
-                        newState.tableau[t].push(movedCard);
-                        nextStates.push(newState);
-                    }
-                }
-            }
-        }
-        
-        return nextStates;
-    }
-    
     /**
-     * 深拷貝狀態
-     */
-    cloneState(state) {
-        return {
-            stock: state.stock.map(c => ({...c})),
-            waste: state.waste.map(c => ({...c})),
-            foundations: state.foundations.map(f => f.map(c => ({...c}))),
-            tableau: state.tableau.map(p => p.map(c => ({...c})))
-        };
-    }
-    
-    /**
-     * 檢查是否可放到 foundation（使用狀態）
+     * 檢查是否可放到 foundation（任意狀態）— 由評分/模擬與 hasAnyLegalMove 使用
      */
     canPlaceOnFoundationState(card, foundation) {
         if (foundation.length === 0) {
@@ -1108,28 +909,19 @@ class Solitaire {
         const topCard = foundation[foundation.length - 1];
         return card.suit === topCard.suit && card.value === topCard.value + 1;
     }
-    
+
     /**
-     * 檢查是否可放到 tableau（使用狀態）- 修正版
+     * 檢查是否可放到 tableau（任意狀態）— 由評分/模擬使用
      */
     canPlaceOnTableauState(card, pile) {
         if (pile.length === 0) {
-            return card.value === 13; // 空牌堆只能放 K
+            return card.value === 13;
         }
         const topCard = pile[pile.length - 1];
         if (!topCard.faceUp) return false;
         return card.color !== topCard.color && card.value === topCard.value - 1;
     }
-    
-    /**
-     * 翻開牌堆最上面的牌
-     */
-    flipTopCardState(pile) {
-        if (pile.length > 0 && !pile[pile.length - 1].faceUp) {
-            pile[pile.length - 1].faceUp = true;
-        }
-    }
-    
+
     hasAnyLegalMove() {
         // 1. waste 頂牌可移動
         if (this.waste.length > 0) {
@@ -1503,7 +1295,6 @@ class Solitaire {
             
             // K 放到空白處的音效
             if (isKingToEmpty) {
-                console.log('Playing placeKing sound for drag K to empty');
                 this.playSound('placeKing');
             }
         }
@@ -1611,7 +1402,6 @@ class Solitaire {
                 
                 // K 放到空白處的音效（移動後播放）
                 if (isKingToEmpty) {
-                    console.log('Playing placeKing sound for K to empty pile');
                     this.playSound('placeKing');
                 }
             }
@@ -2177,7 +1967,7 @@ class Solitaire {
             moves: this.moves
         });
         
-        if (this.history.length > 50) {
+        if (this.history.length > 30) {
             this.history.shift();
         }
     }
@@ -2605,17 +2395,11 @@ class Solitaire {
     createCardElement(card, faceUp) {
         const el = document.createElement('div');
         el.className = `card ${faceUp ? 'face-up' : 'face-down'}`;
-        
-        // 懸停音效（節流）
-        let hoverPlaying = false;
-        el.addEventListener('mouseenter', () => {
-            if (!hoverPlaying) {
-                hoverPlaying = true;
-                this.playSound('hover');
-                setTimeout(() => hoverPlaying = false, 100);
-            }
-        });
-        
+
+        // 懸停音效改在 setupEventListeners 用單一 delegated listener 處理，
+        // 不在每張牌上掛 listener 以節省記憶體與 GC 壓力。
+
+
         if (faceUp && card.rank) {
             el.classList.add(card.color);
             el.innerHTML = `

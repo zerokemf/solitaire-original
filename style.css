@@ -214,7 +214,7 @@ body {
     color: var(--text-secondary);
     cursor: pointer;
     user-select: none;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 #game-number:hover {
@@ -397,7 +397,7 @@ body {
     height: var(--card-height);
     border-radius: var(--card-radius);
     position: relative;
-    transition: all 0.3s ease;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
 }
 
 .stock {
@@ -407,7 +407,7 @@ body {
     background-size: cover, 30px 30px;
     border: 0.3vmin dashed rgba(255,255,255,0.25);
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .stock.empty {
@@ -432,7 +432,7 @@ body {
         var(--pile-pattern);
     background-size: cover, 30px 30px;
     border: 0.2vmin dashed var(--pile-border);
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease;
 }
 
 body.dark-mode {
@@ -685,7 +685,7 @@ body.dark-mode .tableau-pile {
     font-size: 16px;
     text-align: center;
     margin: 12px 0;
-    transition: all 0.25s ease;
+    transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
 }
 
 .modal-content input[type="number"]:focus {
@@ -876,7 +876,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
     color: white;
     border-radius: 0.8vmin;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .challenge-time:hover {
