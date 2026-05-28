@@ -23,6 +23,7 @@ class Solitaire {
         
         // 自動存檔
         this.autoSaveEnabled = true;
+        this.SOLVER_SAVE_VERSION = 2;
         
         // 解析 CSS 變數（支援 px, vmin, vmax）
         this.parseCSSValue = (prop) => {
@@ -374,7 +375,8 @@ class Solitaire {
                 tableau: this.tableau,
                 moves: this.moves,
                 seconds: this.seconds,
-                history: this.history.slice(-30)
+                history: this.history.slice(-30),
+                solverVersion: this.SOLVER_SAVE_VERSION
             };
             localStorage.setItem('solitaire-save', JSON.stringify(saveData));
         } catch (e) {}
@@ -388,6 +390,10 @@ class Solitaire {
 
             const data = JSON.parse(saved);
             if (!data || !data.tableau || !data.stock) return false;
+            if (data.solverVersion !== this.SOLVER_SAVE_VERSION) {
+                localStorage.removeItem('solitaire-save');
+                return false;
+            }
 
             // 恢復遊戲狀態
             this.gameNumber = data.gameNumber;
@@ -414,68 +420,250 @@ class Solitaire {
         }
     }
     
-    // 確保當前牌局品質良好（使用品質評分 + 模擬試玩取代不可靠的求解器）
+    // 產生可解牌局。每個候選牌局都先用解牌器驗證，避免只靠評分造成死棋。
     ensureSolvable() {
-        const maxAttempts = 300;
+        const maxAttempts = 140;
+        const nodeLimit = this.drawCount === 3 ? 70000 : 45000;
         let bestSeed = this.gameNumber;
         let bestScore = -Infinity;
-        const GOOD_SCORE = 65; // 品質門檻（含模擬分數）
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            const trySeed = this.gameNumber + attempt;
+            const trySeed = this.normalizeGameNumber(this.gameNumber + attempt);
+            this.prepareSeededDeal(trySeed);
+            this.spreadStockCards();
 
-            // 清空並重新發牌
-            this.foundations = [[], [], [], []];
-            this.tableau = [[], [], [], [], [], [], []];
-            this.waste = [];
-            this.stock = [];
-            this.createDeck();
-            this.shuffleDeck(trySeed);
-
-            // 標準發牌（7 堆，第 i 堆 i 張，最上面翻開）
-            for (let i = 0; i < 7; i++) {
-                for (let j = 0; j <= i; j++) {
-                    const card = this.stock.pop();
-                    card.faceUp = (j === i);
-                    this.tableau[i].push(card);
-                }
-            }
-
-            // 用品質評分 + 模擬試玩評估牌局
             const dealScore = this.scoreDeal();
             const simScore = this.simulatePlayability();
             const totalScore = dealScore + simScore;
-
-            if (totalScore >= GOOD_SCORE) {
-                this.gameNumber = trySeed;
-                this.spreadStockCards();
-                console.log(`[接龍] 第 ${attempt + 1} 次嘗試找到優質牌局 (編號 ${this.gameNumber}, 品質 ${dealScore} + 模擬 ${simScore} = ${totalScore})`);
-                return;
-            }
 
             if (totalScore > bestScore) {
                 bestScore = totalScore;
                 bestSeed = trySeed;
             }
+
+            if (this.solveCurrentDeal({ nodeLimit })) {
+                this.gameNumber = trySeed;
+                console.log(`[接龍] 已驗證可解牌局 #${trySeed}，搜尋 ${attempt + 1} 次`);
+                return;
+            }
         }
 
-        // 使用找到的最佳牌局
-        this.gameNumber = bestSeed;
+        console.warn(`[接龍] ${maxAttempts} 個候選牌局未通過解牌器，改用保證可解安全牌局。最佳候選 #${bestSeed}，分數 ${bestScore}`);
+        this.createGuaranteedSolvableDeal();
+    }
+
+    normalizeGameNumber(num) {
+        const range = this.MAX_GAME - this.MIN_GAME + 1;
+        return ((num - this.MIN_GAME) % range + range) % range + this.MIN_GAME;
+    }
+
+    prepareSeededDeal(seed) {
+        this.gameNumber = seed;
         this.foundations = [[], [], [], []];
         this.tableau = [[], [], [], [], [], [], []];
         this.waste = [];
         this.stock = [];
         this.createDeck();
-        this.shuffleDeck(bestSeed);
-        for (let i = 0; i < 7; i++) {
-            for (let j = 0; j <= i; j++) {
-                const card = this.stock.pop();
-                card.faceUp = (j === i);
-                this.tableau[i].push(card);
+        this.shuffleDeck(seed);
+        this.dealCards();
+    }
+
+    createGuaranteedSolvableDeal() {
+        const makeCard = (suit, value) => ({
+            suit,
+            rank: this.ranks[value - 1],
+            value,
+            color: this.suitColors[suit],
+            faceUp: true
+        });
+
+        const sequences = [
+            ['♠', '♥'],
+            ['♣', '♦'],
+            ['♥', '♠'],
+            ['♦', '♣']
+        ];
+
+        this.gameNumber = this.normalizeGameNumber(this.gameNumber);
+        this.stock = [];
+        this.waste = [];
+        this.foundations = [[], [], [], []];
+        this.tableau = [[], [], [], [], [], [], []];
+
+        sequences.forEach((pair, pileIndex) => {
+            for (let value = 13; value >= 1; value--) {
+                const suit = value % 2 === 1 ? pair[0] : pair[1];
+                this.tableau[pileIndex].push(makeCard(suit, value));
+            }
+        });
+    }
+
+    solveCurrentDeal({ nodeLimit = 50000 } = {}) {
+        const state = this.cloneSolverState({
+            stock: this.stock,
+            waste: this.waste,
+            foundations: this.foundations,
+            tableau: this.tableau
+        });
+        const visited = new Set();
+        let nodes = 0;
+
+        const search = (current) => {
+            nodes++;
+            if (nodes > nodeLimit) return false;
+            if (this.isSolverWon(current)) return true;
+
+            const key = this.serializeSolverState(current);
+            if (visited.has(key)) return false;
+            visited.add(key);
+
+            const moves = this.getSolverMoves(current);
+            for (const move of moves) {
+                if (search(this.applySolverMove(current, move))) return true;
+            }
+            return false;
+        };
+
+        return search(state);
+    }
+
+    cloneSolverState(state) {
+        const cloneCard = (card) => ({ ...card });
+        return {
+            stock: state.stock.map(cloneCard),
+            waste: state.waste.map(cloneCard),
+            foundations: state.foundations.map(pile => pile.map(cloneCard)),
+            tableau: state.tableau.map(pile => pile.map(cloneCard))
+        };
+    }
+
+    isSolverWon(state) {
+        return state.foundations.reduce((sum, pile) => sum + pile.length, 0) === 52;
+    }
+
+    getCardKey(card) {
+        return `${card.suit}${card.value}${card.faceUp ? 'u' : 'd'}`;
+    }
+
+    serializeSolverState(state) {
+        const pileKey = (pile) => pile.map(card => this.getCardKey(card)).join(',');
+        return [
+            pileKey(state.stock),
+            pileKey(state.waste),
+            state.foundations.map(pileKey).join('|'),
+            state.tableau.map(pileKey).join('|')
+        ].join('#');
+    }
+
+    getSolverMoves(state) {
+        const moves = [];
+        const addFoundationMove = (source, pileIndex = -1, cardIndex = -1) => {
+            const card = source === 'waste'
+                ? state.waste[state.waste.length - 1]
+                : state.tableau[pileIndex][cardIndex];
+            if (!card) return;
+
+            for (let f = 0; f < 4; f++) {
+                if (this.canPlaceOnFoundationState(card, state.foundations[f])) {
+                    moves.push({ type: 'toFoundation', source, pileIndex, cardIndex, foundationIndex: f });
+                }
+            }
+        };
+
+        if (state.waste.length > 0) {
+            addFoundationMove('waste');
+        }
+
+        for (let pileIndex = 0; pileIndex < 7; pileIndex++) {
+            const pile = state.tableau[pileIndex];
+            if (pile.length === 0) continue;
+            const topIndex = pile.length - 1;
+            if (pile[topIndex].faceUp) addFoundationMove('tableau', pileIndex, topIndex);
+        }
+
+        if (state.waste.length > 0) {
+            const card = state.waste[state.waste.length - 1];
+            for (let targetPile = 0; targetPile < 7; targetPile++) {
+                if (this.canPlaceOnTableauState(card, state.tableau[targetPile])) {
+                    moves.push({ type: 'wasteToTableau', targetPile });
+                }
             }
         }
-        this.spreadStockCards();
-        console.log(`[接龍] 使用最佳牌局 (編號 ${this.gameNumber}, 總分 ${bestScore})`);
+
+        for (let sourcePile = 0; sourcePile < 7; sourcePile++) {
+            const pile = state.tableau[sourcePile];
+            for (let cardIndex = 0; cardIndex < pile.length; cardIndex++) {
+                const card = pile[cardIndex];
+                if (!card.faceUp) continue;
+
+                for (let targetPile = 0; targetPile < 7; targetPile++) {
+                    if (targetPile === sourcePile) continue;
+                    if (!this.canPlaceOnTableauState(card, state.tableau[targetPile])) continue;
+                    if (state.tableau[targetPile].length === 0 && cardIndex === 0) continue;
+                    moves.push({ type: 'tableauToTableau', sourcePile, cardIndex, targetPile });
+                }
+            }
+        }
+
+        if (state.stock.length > 0) {
+            moves.push({ type: 'draw' });
+        } else if (state.waste.length > 0) {
+            moves.push({ type: 'recycle' });
+        }
+
+        return moves;
+    }
+
+    applySolverMove(state, move) {
+        const next = this.cloneSolverState(state);
+        const flipTop = (pileIndex) => {
+            const pile = next.tableau[pileIndex];
+            if (pile.length > 0 && !pile[pile.length - 1].faceUp) {
+                pile[pile.length - 1].faceUp = true;
+            }
+        };
+
+        if (move.type === 'toFoundation') {
+            const card = move.source === 'waste'
+                ? next.waste.pop()
+                : next.tableau[move.pileIndex].pop();
+            next.foundations[move.foundationIndex].push(card);
+            if (move.source === 'tableau') flipTop(move.pileIndex);
+            return next;
+        }
+
+        if (move.type === 'wasteToTableau') {
+            next.tableau[move.targetPile].push(next.waste.pop());
+            return next;
+        }
+
+        if (move.type === 'tableauToTableau') {
+            const cards = next.tableau[move.sourcePile].splice(move.cardIndex);
+            next.tableau[move.targetPile].push(...cards);
+            flipTop(move.sourcePile);
+            return next;
+        }
+
+        if (move.type === 'draw') {
+            const drawCount = Math.min(this.drawCount, next.stock.length);
+            for (let i = 0; i < drawCount; i++) {
+                const card = next.stock.pop();
+                card.faceUp = true;
+                next.waste.push(card);
+            }
+            return next;
+        }
+
+        if (move.type === 'recycle') {
+            while (next.waste.length > 0) {
+                const card = next.waste.pop();
+                card.faceUp = false;
+                next.stock.push(card);
+            }
+            return next;
+        }
+
+        return next;
     }
     
     updateGameNumber() {
@@ -1497,14 +1685,14 @@ class Solitaire {
         const baseRadius = 0.7;
         const baseGap = 1.4;
         // 間距隨縮放增加，但保持最小間距防止重疊
-        const baseOffset = Math.max(3.0, 2.5 * this.zoomLevel);
+        const baseOffset = Math.max(3.4, baseHeight * 0.34 * this.zoomLevel);
 
         // 縮放只影響牌桌（卡片大小、間距、字面字體），不動 header/menu，
         // 避免按鈕變大後換行造成介面跑版。
         root.style.setProperty('--card-width', `${baseWidth * this.zoomLevel}vmin`);
         root.style.setProperty('--card-height', `${baseHeight * this.zoomLevel}vmin`);
         root.style.setProperty('--card-radius', `${baseRadius * this.zoomLevel}vmin`);
-        root.style.setProperty('--pile-gap', `${baseGap * this.zoomLevel}vmin`);
+        root.style.setProperty('--pile-gap', `${Math.max(baseGap, baseGap * this.zoomLevel)}vmin`);
         root.style.setProperty('--tableau-offset', `${baseOffset}vmin`);
 
         // 容器寬度也跟著變大，確保牌桌橫向擺得下
@@ -1541,8 +1729,8 @@ class Solitaire {
         // 用顏色狀態 + tooltip 標示，按鈕本身保持精簡
         btn.classList.toggle('btn-active', this.drawCount === 3);
         btn.title = this.drawCount === 1 ? '難度: 簡單（每次翻 1 張）' : '難度: 困難（每次翻 3 張）';
-        // 重新渲染廢牌堆
-        this.renderWaste();
+        // 抽牌數會影響可解性，切換難度後必須重新產生一局並再次驗證。
+        this.newGame(this.gameNumber);
     }
     
     // === 音效系統 ===

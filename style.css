@@ -89,6 +89,7 @@
     --card-height: 11.2vmin;
     --card-radius: 0.7vmin;
     --pile-gap: 1.4vmin;
+    --tableau-offset: 3.4vmin;
     --container-width: 90vmin;
     
     /* 字體大小 */
@@ -780,6 +781,7 @@ body.dark-mode .tableau-pile {
         --card-width: 10vmin;
         --card-height: 14vmin;
         --pile-gap: 1.8vmin;
+        --tableau-offset: 4.2vmin;
         --container-width: 96vmin;
     }
 
