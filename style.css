@@ -732,6 +732,7 @@ body.dark-mode .tableau-pile {
     pointer-events: none;
     z-index: 10000;
     overflow: hidden;
+    contain: strict;
 }
 
 .falling-card {
@@ -745,7 +746,10 @@ body.dark-mode .tableau-pile {
     flex-direction: column;
     padding: 0.6vmin;
     pointer-events: none;
-    /* JS 物理引擎會處理動畫，不要用 CSS 動畫覆蓋 */
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    contain: layout paint style;
 }
 
 .falling-card.red { color: var(--red); }

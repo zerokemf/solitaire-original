@@ -2206,20 +2206,25 @@ class Solitaire {
     // === 勝利動畫 ===
     
     async playWinAnimation() {
-        // 建立動畫容器
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReducedMotion) {
+            this.foundations = [[], [], [], []];
+            this.renderFoundations();
+            return;
+        }
+
         const container = document.createElement('div');
         container.className = 'win-animation-container';
         document.body.appendChild(container);
-        
+
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
         const cardWidth = this.parseCSSValue('--card-width') || 90;
         const cardHeight = this.parseCSSValue('--card-height') || 126;
-        
-        // 建立發牌順序：輪流從每個 foundation 取最上面的牌
+
         const cardQueue = [];
         const foundationCopies = this.foundations.map(f => [...f]);
-        
+
         while (foundationCopies.some(f => f.length > 0)) {
             for (let f = 0; f < 4; f++) {
                 if (foundationCopies[f].length > 0) {
@@ -2228,142 +2233,83 @@ class Solitaire {
                 }
             }
         }
-        
-        // 物理模擬參數
-        const gravity = 0.4;
-        const bounce = 0.7;
-        const cards = [];
-        
-        // 依序發射卡牌
-        let cardIndex = 0;
-        const launchInterval = 100;  // 每張牌間隔
-        
-        return new Promise((resolve) => {
-            const launchCard = () => {
-                if (cardIndex >= cardQueue.length) return;
-                
-                const { card, foundationIndex } = cardQueue[cardIndex];
-                const foundationEl = this.foundationEls[foundationIndex];
-                const rect = foundationEl.getBoundingClientRect();
-                
-                // 從真正的 foundation 移除這張牌並更新顯示
-                this.foundations[foundationIndex].pop();
-                this.renderFoundations();
-                
-                // 建立掉落的卡牌元素
-                const cardEl = document.createElement('div');
-                cardEl.className = `falling-card ${card.color}`;
-                cardEl.innerHTML = `
-                    <div class="card-corner top">
-                        <span class="card-rank">${card.rank}</span>
-                        <span class="card-suit">${card.suit}</span>
-                    </div>
-                    <div class="card-center">${card.suit}</div>
-                    <div class="card-corner bottom">
-                        <span class="card-rank">${card.rank}</span>
-                        <span class="card-suit">${card.suit}</span>
-                    </div>
-                `;
-                cardEl.style.transform = `translate(${rect.left}px, ${rect.top}px)`;
-                container.appendChild(cardEl);
-                
-                // 設定初始位置和速度
-                const angle = -30 - Math.random() * 30;
-                const speed = 8 + Math.random() * 4;
-                const radians = angle * Math.PI / 180;
-                
-                cards.push({
-                    el: cardEl,
-                    x: rect.left,
-                    y: rect.top,
-                    vx: Math.cos(radians) * speed * (foundationIndex < 2 ? -1 : 1),
-                    vy: Math.sin(radians) * speed,
-                    rotation: 0,
-                    rotationSpeed: (Math.random() - 0.5) * 8
-                });
-                
-                cardIndex++;
-                
-                // 落牌音效
-                this.playSound('drop');
-                
-                if (cardIndex < cardQueue.length) {
-                    setTimeout(launchCard, launchInterval);
-                }
-            };
-            
-            // 動畫迴圈
-            let animationFrame;
-            let framesWithoutMovement = 0;
-            
-            const animate = () => {
-                let anyMoving = false;
-                
-                cards.forEach(card => {
-                    // 物理更新
-                    card.vy += gravity;
-                    card.x += card.vx;
-                    card.y += card.vy;
-                    card.rotation += card.rotationSpeed;
-                    
-                    // 地板碰撞
-                    if (card.y > screenHeight - cardHeight) {
-                        card.y = screenHeight - cardHeight;
-                        card.vy = -card.vy * bounce;
-                        card.vx *= 0.9;
-                        card.rotationSpeed *= 0.8;
-                        
-                        if (Math.abs(card.vy) < 1) {
-                            card.vy = 0;
-                        }
-                    }
-                    
-                    // 側邊碰撞
-                    if (card.x < 0) {
-                        card.x = 0;
-                        card.vx = -card.vx * bounce;
-                    } else if (card.x > screenWidth - cardWidth) {
-                        card.x = screenWidth - cardWidth;
-                        card.vx = -card.vx * bounce;
-                    }
-                    
-                    // 更新位置
-                    card.el.style.transform = `translate(${card.x}px, ${card.y}px) rotate(${card.rotation}deg)`;
-                    
-                    // 檢查是否還在移動
-                    if (Math.abs(card.vx) > 0.1 || Math.abs(card.vy) > 0.1 || card.y < screenHeight - cardHeight - 5) {
-                        anyMoving = true;
-                    }
-                });
-                
-                if (!anyMoving && cardIndex >= cardQueue.length) {
-                    framesWithoutMovement++;
-                    if (framesWithoutMovement > 60) {
-                        cancelAnimationFrame(animationFrame);
-                        setTimeout(() => {
-                            container.remove();
-                            resolve();
-                        }, 500);
-                        return;
-                    }
-                } else {
-                    framesWithoutMovement = 0;
-                }
-                
-                animationFrame = requestAnimationFrame(animate);
-            };
-            
-            // 開始動畫
-            launchCard();
-            animate();
-            
-            // 最長 10 秒後結束
-            setTimeout(() => {
-                cancelAnimationFrame(animationFrame);
-                container.remove();
-                resolve();
-            }, 10000);
+
+        const foundationRects = this.foundationEls.map(el => el.getBoundingClientRect());
+        this.foundations = [[], [], [], []];
+        this.renderFoundations();
+
+        const fragment = document.createDocumentFragment();
+        const animations = cardQueue.map(({ card, foundationIndex }, index) => {
+            const rect = foundationRects[foundationIndex];
+            const cardEl = document.createElement('div');
+            cardEl.className = `falling-card ${card.color}`;
+            cardEl.innerHTML = `
+                <div class="card-corner top">
+                    <span class="card-rank">${card.rank}</span>
+                    <span class="card-suit">${card.suit}</span>
+                </div>
+                <div class="card-center">${card.suit}</div>
+                <div class="card-corner bottom">
+                    <span class="card-rank">${card.rank}</span>
+                    <span class="card-suit">${card.suit}</span>
+                </div>
+            `;
+
+            const direction = foundationIndex < 2 ? -1 : 1;
+            const drift = direction * (120 + Math.random() * 260);
+            const endX = Math.max(0, Math.min(screenWidth - cardWidth, rect.left + drift));
+            const endY = screenHeight + cardHeight + Math.random() * 80;
+            const midX = Math.max(0, Math.min(screenWidth - cardWidth, rect.left + drift * 0.45));
+            const midY = Math.max(0, rect.top - 80 - Math.random() * 140);
+            const rotation = direction * (90 + Math.random() * 220);
+            const delay = index * 28;
+            const duration = 950 + Math.random() * 360;
+
+            cardEl.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0) rotate(0deg)`;
+            fragment.appendChild(cardEl);
+
+            return { cardEl, delay, duration, midX, midY, endX, endY, rotation };
         });
+
+        container.appendChild(fragment);
+
+        const running = animations.map((item, index) => {
+            const animation = item.cardEl.animate([
+                {
+                    transform: item.cardEl.style.transform,
+                    opacity: 1,
+                    offset: 0
+                },
+                {
+                    transform: `translate3d(${item.midX}px, ${item.midY}px, 0) rotate(${item.rotation * 0.35}deg)`,
+                    opacity: 1,
+                    offset: 0.38
+                },
+                {
+                    transform: `translate3d(${item.endX}px, ${item.endY}px, 0) rotate(${item.rotation}deg)`,
+                    opacity: 0,
+                    offset: 1
+                }
+            ], {
+                delay: item.delay,
+                duration: item.duration,
+                easing: 'cubic-bezier(.16,.84,.28,1)',
+                fill: 'forwards'
+            });
+
+            if (this.soundEnabled && index % 4 === 0) {
+                setTimeout(() => this.playSound('drop'), item.delay);
+            }
+
+            return animation.finished.catch(() => {});
+        });
+
+        await Promise.race([
+            Promise.all(running),
+            new Promise(resolve => setTimeout(resolve, 3200))
+        ]);
+
+        container.remove();
     }
     
     // === 自動完成功能 ===
