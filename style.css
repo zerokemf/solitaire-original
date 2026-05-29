@@ -778,6 +778,14 @@ body.dark-mode .tableau-pile {
         flex-wrap: wrap;
     }
     .game-header .brand h1 { font-size: 16px; }
+
+    /* 縮小牌桌，確保 tableau 不超出（769px~900px 尷尬區間） */
+    :root {
+        --card-width: 6.5vmin;
+        --card-height: 9.1vmin;
+        --pile-gap: 1.2vmin;
+        --tableau-offset: 2.8vmin;
+    }
 }
 
 @media (max-width: 768px) {
@@ -807,6 +815,14 @@ body.dark-mode .tableau-pile {
 @media (max-width: 480px) {
     .game-header .brand h1 { display: none; }
     .game-header .stats { gap: 10px; }
+
+    /* 更小的牌，適應小手機 */
+    :root {
+        --card-width: 8.5vmin;
+        --card-height: 11.9vmin;
+        --pile-gap: 1.4vmin;
+        --tableau-offset: 3.4vmin;
+    }
 }
 
 /* === 滾動條美化 === */
