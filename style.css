@@ -772,10 +772,11 @@ input:focus-visible,
 /* Wide desktop: let the table breathe instead of freezing at 840px */
 @media (min-width: 1200px) {
     :root {
-        --container-width: 2800px;
-        --playfield-width: min(68vw, 1960px);
+        --container-width: 2200px;
+        --column-gap: clamp(28px, 1.6vw, 52px);
         --card-width: clamp(100px, 5.6vw, 168px);
         --card-height: calc(var(--card-width) * 1.4);
+        --playfield-width: calc((var(--card-width) * 7) + (var(--column-gap) * 6));
         --card-radius: clamp(9px, 0.45vw, 14px);
         --pile-gap: clamp(16px, 1.1vw, 28px);
         --tableau-offset: clamp(32px, 1.8vw, 50px);
@@ -785,7 +786,7 @@ input:focus-visible,
     }
 
     .game-container {
-        width: min(96vw, var(--container-width));
+        width: min(92vw, var(--container-width));
     }
 
     .top-area,
@@ -794,7 +795,8 @@ input:focus-visible,
     }
 
     .tableau {
-        justify-content: space-between;
+        justify-content: flex-start;
+        gap: var(--column-gap);
     }
 }
 

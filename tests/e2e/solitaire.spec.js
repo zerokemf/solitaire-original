@@ -109,20 +109,20 @@ test('桌機保留完整工具列且牌桌成為主要視覺焦點', async ({ pa
   expect(layout.actionsPosition).not.toBe('fixed');
 });
 
-test('1280 到 3440px 桌機牌桌會流動擴展，不把七列擠在中央', async ({ page }) => {
+test('1280 到 3440px 桌機保持適中牌距，不因超寬螢幕無限拉開', async ({ page }) => {
   await prepare(page);
   const viewports = [
     { width: 1280, height: 900 },
     { width: 1440, height: 1000 },
     { width: 1920, height: 1080 },
-    { width: 2560, height: 1440 },
+    { width: 2560, height: 1295 },
     { width: 3440, height: 1440 }
   ];
   const measurements = [];
 
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
-    await page.goto(`/?e2e=wide-${viewport.width}`);
+    await page.goto(`/?e2e=balanced-${viewport.width}`);
     const layout = await page.evaluate(() => {
       const board = document.querySelector('.game-board').getBoundingClientRect();
       const topArea = document.querySelector('.top-area').getBoundingClientRect();
@@ -132,6 +132,7 @@ test('1280 到 3440px 桌機牌桌會流動擴展，不把七列擠在中央', a
       const piles = [...document.querySelectorAll('.tableau-pile')].map(el => el.getBoundingClientRect());
       const first = piles[0];
       const last = piles[piles.length - 1];
+      const gap = piles[1].left - first.right;
       return {
         viewportWidth: innerWidth,
         boardWidth: board.width,
@@ -141,32 +142,33 @@ test('1280 到 3440px 桌機牌桌會流動擴展，不把七列擠在中央', a
         foundationRightDelta: lastFoundation.right - last.right,
         pileSpan: last.right - first.left,
         cardWidth: first.width,
-        gap: piles[1].left - first.right,
+        gap,
+        gapRatio: gap / first.width,
         scrollWidth: document.documentElement.scrollWidth
       };
     });
     measurements.push(layout);
 
     expect.soft(layout.scrollWidth, `${viewport.width}px 不得橫向溢位`).toBe(viewport.width);
-    expect.soft(layout.boardWidth, `${viewport.width}px 外框應使用桌機寬度`)
-      .toBeGreaterThanOrEqual(Math.min(viewport.width * 0.9, 2700));
+    expect.soft(layout.boardWidth, `${viewport.width}px 外框不得過窄`)
+      .toBeGreaterThanOrEqual(Math.min(viewport.width * 0.82, 1800));
+    expect.soft(layout.boardWidth, `${viewport.width}px 外框不得鋪滿超寬螢幕`)
+      .toBeLessThanOrEqual(Math.min(viewport.width * 0.94, 2250));
     expect.soft(Math.abs(layout.topAreaWidth - layout.playfieldWidth), `${viewport.width}px 上下牌區寬度一致`)
       .toBeLessThanOrEqual(1);
     expect.soft(Math.abs(layout.stockLeftDelta), `${viewport.width}px 牌庫應對齊第一列`)
       .toBeLessThanOrEqual(1);
     expect.soft(Math.abs(layout.foundationRightDelta), `${viewport.width}px 基礎牌堆應對齊第七列`)
       .toBeLessThanOrEqual(1);
-    expect.soft(layout.pileSpan, `${viewport.width}px 七列應橫向展開`)
-      .toBeGreaterThanOrEqual(Math.min(viewport.width * 0.65, 1900));
-    expect.soft(layout.cardWidth, `${viewport.width}px 紙牌應隨螢幕放大`)
-      .toBeGreaterThanOrEqual(Math.min(160, Math.max(100, viewport.width * 0.052)));
-    if (viewport.width >= 1920) {
-      expect.soft(layout.gap, `${viewport.width}px 各列應有舒適間距`)
-        .toBeGreaterThanOrEqual(Math.min(110, viewport.width * 0.035));
-    }
+    expect.soft(layout.gapRatio, `${viewport.width}px 牌距不得太近`)
+      .toBeGreaterThanOrEqual(0.26);
+    expect.soft(layout.gapRatio, `${viewport.width}px 牌距不得太遠`)
+      .toBeLessThanOrEqual(0.36);
+    expect.soft(layout.gap, `${viewport.width}px 牌距上限`)
+      .toBeLessThanOrEqual(54);
   }
 
-  console.log('WIDE_LAYOUT_METRICS', JSON.stringify(measurements));
+  console.log('BALANCED_LAYOUT_METRICS', JSON.stringify(measurements));
 });
 
 test('2560px 桌機縮放只改變牌面，不破壞七列展開與對齊', async ({ page }) => {
@@ -180,6 +182,8 @@ test('2560px 桌機縮放只改變牌面，不破壞七列展開與對齊', asyn
     const tableau = document.querySelector('.tableau').getBoundingClientRect();
     return {
       cardWidth: piles[0].width,
+      gap: piles[1].left - piles[0].right,
+      gapRatio: (piles[1].left - piles[0].right) / piles[0].width,
       pileSpan: piles[6].right - piles[0].left,
       topAreaWidth: topArea.width,
       tableauWidth: tableau.width,
@@ -188,10 +192,16 @@ test('2560px 桌機縮放只改變牌面，不破壞七列展開與對齊', asyn
   });
 
   const initial = await measure();
+  expect(initial.gapRatio).toBeGreaterThanOrEqual(0.26);
+  expect(initial.gapRatio).toBeLessThanOrEqual(0.36);
+
   await page.locator('#zoom-in').click();
   const enlarged = await measure();
   expect(enlarged.cardWidth).toBeGreaterThan(initial.cardWidth + 10);
-  expect(enlarged.pileSpan).toBeCloseTo(initial.pileSpan, 0);
+  expect(enlarged.gap).toBeGreaterThan(initial.gap);
+  expect(enlarged.gapRatio).toBeGreaterThanOrEqual(0.26);
+  expect(enlarged.gapRatio).toBeLessThanOrEqual(0.36);
+  expect(enlarged.pileSpan).toBeGreaterThan(initial.pileSpan);
   expect(enlarged.topAreaWidth).toBeCloseTo(enlarged.tableauWidth, 0);
   expect(enlarged.scrollWidth).toBe(2560);
 
@@ -199,7 +209,10 @@ test('2560px 桌機縮放只改變牌面，不破壞七列展開與對齊', asyn
   await page.locator('#zoom-out').click();
   const reduced = await measure();
   expect(reduced.cardWidth).toBeLessThan(initial.cardWidth - 10);
-  expect(reduced.pileSpan).toBeCloseTo(initial.pileSpan, 0);
+  expect(reduced.gap).toBeLessThan(initial.gap);
+  expect(reduced.gapRatio).toBeGreaterThanOrEqual(0.26);
+  expect(reduced.gapRatio).toBeLessThanOrEqual(0.36);
+  expect(reduced.pileSpan).toBeLessThan(initial.pileSpan);
   expect(reduced.scrollWidth).toBe(2560);
 });
 

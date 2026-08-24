@@ -119,6 +119,8 @@ class Solitaire {
         if (!this.autoRestore()) {
             this.newGame();
         }
+        // 依目前 viewport 建立牌寬、牌距與牌區寬度的單一比例基準。
+        this.setZoom(0, false);
     }
 
     getModalFocusables(modal) {
@@ -2047,18 +2049,24 @@ class Solitaire {
             cardWidth = Math.max(40, (tableauWidth - gap * 6) / 7);
         } else {
             const wideDesktop = window.innerWidth >= 1200;
-            const renderedPlayfield = document.querySelector('.tableau')?.getBoundingClientRect().width;
-            const fieldWidth = wideDesktop
-                ? (renderedPlayfield || Math.min(window.innerWidth * 0.68, 1960))
-                : Math.min(840, Math.max(560, boardWidth - 48));
-            const gap = wideDesktop
-                ? Math.max(16, Math.min(30, window.innerWidth * 0.01))
-                : Math.max(8, Math.min(14, fieldWidth * 0.012));
-            const fittedWidth = (fieldWidth - gap * 6) / 7;
-            const baseCardWidth = wideDesktop
-                ? Math.max(100, Math.min(168, window.innerWidth * 0.056))
-                : 96;
-            cardWidth = Math.min(fittedWidth, baseCardWidth * this.zoomLevel);
+            if (wideDesktop) {
+                const availableWidth = Math.max(760, boardWidth - 120);
+                const requestedCardWidth = Math.max(100, Math.min(168, window.innerWidth * 0.056)) * this.zoomLevel;
+                let requestedGap = Math.max(28, Math.min(52, requestedCardWidth * 0.30));
+                cardWidth = Math.min(requestedCardWidth, (availableWidth - requestedGap * 6) / 7);
+                requestedGap = Math.max(28, Math.min(52, cardWidth * 0.30));
+                if (cardWidth * 7 + requestedGap * 6 > availableWidth) {
+                    cardWidth = (availableWidth - requestedGap * 6) / 7;
+                    requestedGap = Math.max(28, Math.min(52, cardWidth * 0.30));
+                }
+                this.columnGap = requestedGap;
+            } else {
+                const fieldWidth = Math.min(840, Math.max(560, boardWidth - 48));
+                const gap = Math.max(8, Math.min(14, fieldWidth * 0.012));
+                const fittedWidth = (fieldWidth - gap * 6) / 7;
+                cardWidth = Math.min(fittedWidth, 96 * this.zoomLevel);
+                this.columnGap = null;
+            }
         }
 
         const cardHeight = cardWidth * 1.4;
@@ -2071,6 +2079,14 @@ class Solitaire {
         root.style.setProperty('--font-rank', `${Math.max(14, cardWidth * 0.22)}px`);
         root.style.setProperty('--font-suit', `${Math.max(11, cardWidth * 0.17)}px`);
         root.style.setProperty('--font-center', `${Math.max(24, cardWidth * 0.48)}px`);
+        if (window.innerWidth >= 1200 && Number.isFinite(this.columnGap)) {
+            const playfieldWidth = cardWidth * 7 + this.columnGap * 6;
+            root.style.setProperty('--column-gap', `${this.columnGap}px`);
+            root.style.setProperty('--playfield-width', `${playfieldWidth}px`);
+        } else {
+            root.style.removeProperty('--column-gap');
+            root.style.removeProperty('--playfield-width');
+        }
         this.cssValueCache.clear();
         this.renderTableau();
         if (shouldAnnounce) this.announce(`牌面縮放 ${Math.round(this.zoomLevel * 100)}%`);
