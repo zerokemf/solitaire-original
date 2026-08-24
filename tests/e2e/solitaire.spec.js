@@ -285,6 +285,118 @@ test('桌機拖曳可移動合法紙牌並保留復原狀態', async ({ page }) 
   await expect(page.locator('#undo-btn')).toBeEnabled();
 });
 
+test('經典破關動畫會逐張發射紙牌、碰撞反彈，再顯示完成視窗', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await prepare(page);
+  await page.goto('/?e2e=classic-win-animation');
+
+  await page.evaluate(() => {
+    const suits = ['♠', '♥', '♦', '♣'];
+    const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const game = window.solitaire;
+    game.stock = [];
+    game.waste = [];
+    game.tableau = [[], [], [], [], [], [], []];
+    game.foundations = suits.map(suit => ranks.map((rank, index) => ({
+      suit,
+      rank,
+      value: index + 1,
+      color: suit === '♥' || suit === '♦' ? 'red' : 'black',
+      faceUp: true
+    })));
+    game.gameWon = false;
+    game.winAnimationSpeed = 8;
+    game.renderFoundations();
+    game.checkWin();
+  });
+
+  const animation = page.locator('.win-animation-container');
+  await expect(animation).toHaveAttribute('data-animation', 'classic-bounce');
+  await page.waitForFunction(() => Number(document.querySelector('.win-animation-container')?.dataset.launched || 0) >= 8);
+  expect(await page.locator('.falling-card').count()).toBeGreaterThanOrEqual(8);
+  await page.waitForFunction(() => Number(document.querySelector('.win-animation-container')?.dataset.bounces || 0) >= 1);
+  await expect(page.locator('#win-modal')).not.toHaveClass(/hidden/, { timeout: 3_000 });
+  await expect(animation).toHaveCount(0);
+
+  const state = await page.evaluate(() => ({
+    foundationCounts: window.solitaire.foundations.map(pile => pile.length),
+    gameWon: window.solitaire.gameWon
+  }));
+  expect(state.foundationCounts).toEqual([13, 13, 13, 13]);
+  expect(state.gameWon).toBe(true);
+});
+
+test('正式速度經典動畫完整播放後才顯示過關視窗', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await prepare(page);
+  await page.goto('/?e2e=full-speed-classic-win');
+
+  const startedAt = Date.now();
+  await page.evaluate(() => {
+    const suits = ['♠', '♥', '♦', '♣'];
+    const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const game = window.solitaire;
+    game.stock = [];
+    game.waste = [];
+    game.tableau = [[], [], [], [], [], [], []];
+    game.foundations = suits.map(suit => ranks.map((rank, index) => ({
+      suit,
+      rank,
+      value: index + 1,
+      color: suit === '♥' || suit === '♦' ? 'red' : 'black',
+      faceUp: true
+    })));
+    game.gameWon = false;
+    game.winAnimationSpeed = 1;
+    game.renderFoundations();
+    game.checkWin();
+  });
+
+  await expect(page.locator('.win-animation-container'))
+    .toHaveAttribute('data-animation', 'classic-bounce');
+  await expect(page.locator('#win-modal')).not.toHaveClass(/hidden/, { timeout: 11_000 });
+  const duration = Date.now() - startedAt;
+  expect(duration).toBeGreaterThanOrEqual(4_000);
+  expect(duration).toBeLessThanOrEqual(11_000);
+  await expect(page.locator('.win-animation-container')).toHaveCount(0);
+  expect(await page.evaluate(() => window.solitaire.foundations.map(pile => pile.length)))
+    .toEqual([13, 13, 13, 13]);
+});
+
+test('計時挑戰成功也會先播經典動畫，再顯示挑戰結果', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await prepare(page);
+  await page.goto('/?e2e=challenge-classic-win-animation');
+
+  await page.evaluate(() => {
+    const suits = ['♠', '♥', '♦', '♣'];
+    const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const game = window.solitaire;
+    game.stock = [];
+    game.waste = [];
+    game.tableau = [[], [], [], [], [], [], []];
+    game.foundations = suits.map(suit => ranks.map((rank, index) => ({
+      suit,
+      rank,
+      value: index + 1,
+      color: suit === '♥' || suit === '♦' ? 'red' : 'black',
+      faceUp: true
+    })));
+    game.challengeMode = true;
+    game.challengeInterval = setInterval(() => {}, 1000);
+    game.gameWon = false;
+    game.winAnimationSpeed = 8;
+    game.renderFoundations();
+    game.checkWin();
+  });
+
+  await expect(page.locator('.win-animation-container'))
+    .toHaveAttribute('data-animation', 'classic-bounce');
+  await expect(page.locator('#challenge-result-modal')).not.toHaveClass(/hidden/, { timeout: 3_000 });
+  await expect(page.locator('.win-animation-container')).toHaveCount(0);
+  await expect(page.locator('#win-modal')).toHaveClass(/hidden/);
+});
+
 test('主題切換具可存續狀態與可存取名稱', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await prepare(page);

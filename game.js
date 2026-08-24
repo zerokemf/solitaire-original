@@ -2601,18 +2601,23 @@ class Solitaire {
             // 記錄勝利
             this.recordWin();
             
-            // 如果是挑戰模式，結束挑戰
-            if (this.challengeMode) {
-                this.endChallenge(true);
-                return;
+            // 挑戰成功也必須先播完整破關動畫；先凍結倒數，避免動畫期間誤判超時。
+            const completedChallenge = this.challengeMode;
+            if (completedChallenge && this.challengeInterval) {
+                clearInterval(this.challengeInterval);
+                this.challengeInterval = null;
             }
-            
+
             // 勝利音效
             this.playSound('win');
             
-            // 播放勝利動畫
+            // 播放勝利動畫，完成後才顯示一般／挑戰結果。
             this.playWinAnimation().then(() => {
                 if (completedGameRunId !== (this.gameRunId || 0) || !this.gameWon) return;
+                if (completedChallenge) {
+                    this.endChallenge(true);
+                    return;
+                }
                 document.getElementById('final-moves').textContent = this.moves;
                 document.getElementById('final-time').textContent = this.formatTime(this.seconds);
                 this.showModal('win-modal', '#play-again');
@@ -2624,108 +2629,199 @@ class Solitaire {
     
     async playWinAnimation() {
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (prefersReducedMotion) {
-            return;
-        }
+        if (prefersReducedMotion) return;
 
+        const animationRunId = this.gameRunId || 0;
+        const speedMultiplier = Math.max(1, Math.min(10, Number(this.winAnimationSpeed) || 1));
         const container = document.createElement('div');
         container.className = 'win-animation-container';
+        container.dataset.animation = 'classic-bounce';
+        container.dataset.launched = '0';
+        container.dataset.bounces = '0';
         document.body.appendChild(container);
 
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
         const cardWidth = this.parseCSSValue('--card-width') || 90;
         const cardHeight = this.parseCSSValue('--card-height') || 126;
+        const foundationRects = this.foundationEls.map(el => el.getBoundingClientRect());
 
+        // 建立經典輪流發射順序，但只操作副本，絕不修改 canonical foundations。
         const cardQueue = [];
-        const foundationCopies = this.foundations.map(f => [...f]);
-
-        while (foundationCopies.some(f => f.length > 0)) {
-            for (let f = 0; f < 4; f++) {
-                if (foundationCopies[f].length > 0) {
-                    const card = foundationCopies[f].pop();
-                    cardQueue.push({ card, foundationIndex: f });
+        const visualFoundations = this.foundations.map(foundation => foundation.map(card => ({ ...card })));
+        const queueCopies = visualFoundations.map(foundation => [...foundation]);
+        while (queueCopies.some(foundation => foundation.length > 0)) {
+            for (let foundationIndex = 0; foundationIndex < 4; foundationIndex++) {
+                if (queueCopies[foundationIndex].length > 0) {
+                    cardQueue.push({
+                        card: queueCopies[foundationIndex].pop(),
+                        foundationIndex
+                    });
                 }
             }
         }
 
-        const foundationRects = this.foundationEls.map(el => el.getBoundingClientRect());
-        // 動畫只暫時清空畫面，不可破壞已完成的牌局資料。
-        this.foundationEls.forEach(el => { el.innerHTML = ''; });
+        if (cardQueue.length === 0) {
+            container.remove();
+            return;
+        }
 
-        const fragment = document.createDocumentFragment();
-        const animations = cardQueue.map(({ card, foundationIndex }, index) => {
-            const rect = foundationRects[foundationIndex];
-            const cardEl = document.createElement('div');
-            cardEl.className = `falling-card ${card.color}`;
-            cardEl.innerHTML = `
-                <div class="card-corner top">
-                    <span class="card-rank">${card.rank}</span>
-                    <span class="card-suit">${card.suit}</span>
-                </div>
-                <div class="card-center">${card.suit}</div>
-                <div class="card-corner bottom">
-                    <span class="card-rank">${card.rank}</span>
-                    <span class="card-suit">${card.suit}</span>
-                </div>
-            `;
+        const renderVisualFoundation = (foundationIndex) => {
+            const foundationEl = this.foundationEls[foundationIndex];
+            foundationEl.innerHTML = '';
+            const visualPile = visualFoundations[foundationIndex];
+            if (visualPile.length === 0) return;
+            const cardEl = this.createCardElement(visualPile[visualPile.length - 1], true);
+            cardEl.style.top = '0';
+            cardEl.removeAttribute('role');
+            cardEl.tabIndex = -1;
+            cardEl.setAttribute('aria-hidden', 'true');
+            foundationEl.appendChild(cardEl);
+        };
 
-            const direction = foundationIndex < 2 ? -1 : 1;
-            const drift = direction * (120 + Math.random() * 260);
-            const endX = Math.max(0, Math.min(screenWidth - cardWidth, rect.left + drift));
-            const endY = screenHeight + cardHeight + Math.random() * 80;
-            const midX = Math.max(0, Math.min(screenWidth - cardWidth, rect.left + drift * 0.45));
-            const midY = Math.max(0, rect.top - 80 - Math.random() * 140);
-            const rotation = direction * (90 + Math.random() * 220);
-            const delay = index * 28;
-            const duration = 950 + Math.random() * 360;
+        const gravity = 0.42;
+        const bounce = 0.72;
+        const activeCards = [];
+        const launchInterval = Math.max(8, 90 / speedMultiplier);
+        const physicsStep = Math.min(3, speedMultiplier);
+        const settleFramesRequired = Math.max(8, Math.round(50 / speedMultiplier));
+        const maxDuration = Math.max(1200, 10000 / speedMultiplier);
 
-            cardEl.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0) rotate(0deg)`;
-            fragment.appendChild(cardEl);
+        return new Promise(resolve => {
+            let cardIndex = 0;
+            let animationFrame = null;
+            let launchTimer = null;
+            let maxTimer = null;
+            let settleFrames = 0;
+            let finished = false;
 
-            return { cardEl, delay, duration, midX, midY, endX, endY, rotation };
-        });
-
-        container.appendChild(fragment);
-
-        const running = animations.map((item, index) => {
-            const animation = item.cardEl.animate([
-                {
-                    transform: item.cardEl.style.transform,
-                    opacity: 1,
-                    offset: 0
-                },
-                {
-                    transform: `translate3d(${item.midX}px, ${item.midY}px, 0) rotate(${item.rotation * 0.35}deg)`,
-                    opacity: 1,
-                    offset: 0.38
-                },
-                {
-                    transform: `translate3d(${item.endX}px, ${item.endY}px, 0) rotate(${item.rotation}deg)`,
-                    opacity: 0,
-                    offset: 1
+            const finish = (restoreFoundations = true) => {
+                if (finished) return;
+                finished = true;
+                if (animationFrame !== null) cancelAnimationFrame(animationFrame);
+                if (launchTimer !== null) clearTimeout(launchTimer);
+                if (maxTimer !== null) clearTimeout(maxTimer);
+                container.remove();
+                if (restoreFoundations && animationRunId === (this.gameRunId || 0)) {
+                    this.renderFoundations();
                 }
-            ], {
-                delay: item.delay,
-                duration: item.duration,
-                easing: 'cubic-bezier(.16,.84,.28,1)',
-                fill: 'forwards'
-            });
+                resolve();
+            };
 
-            if (this.soundEnabled && index % 4 === 0) {
-                setTimeout(() => this.playSound('drop'), item.delay);
-            }
+            const launchCard = () => {
+                if (finished || cardIndex >= cardQueue.length) return;
+                if (animationRunId !== (this.gameRunId || 0) || !container.isConnected) {
+                    finish(false);
+                    return;
+                }
 
-            return animation.finished.catch(() => {});
+                const { card, foundationIndex } = cardQueue[cardIndex];
+                const rect = foundationRects[foundationIndex];
+                visualFoundations[foundationIndex].pop();
+                renderVisualFoundation(foundationIndex);
+
+                const cardEl = document.createElement('div');
+                cardEl.className = `falling-card ${card.color}`;
+                cardEl.innerHTML = `
+                    <div class="card-corner top">
+                        <span class="card-rank">${card.rank}</span>
+                        <span class="card-suit">${card.suit}</span>
+                    </div>
+                    <div class="card-center">${card.suit}</div>
+                    <div class="card-corner bottom">
+                        <span class="card-rank">${card.rank}</span>
+                        <span class="card-suit">${card.suit}</span>
+                    </div>
+                `;
+
+                const direction = foundationIndex < 2 ? -1 : 1;
+                const angle = (-30 - Math.random() * 30) * Math.PI / 180;
+                const launchSpeed = 8 + Math.random() * 4;
+                const movingCard = {
+                    el: cardEl,
+                    x: rect.left,
+                    y: rect.top,
+                    vx: Math.cos(angle) * launchSpeed * direction,
+                    vy: Math.sin(angle) * launchSpeed,
+                    rotation: 0,
+                    rotationSpeed: (Math.random() - 0.5) * 8,
+                    resting: false
+                };
+                cardEl.style.transform = `translate3d(${movingCard.x}px, ${movingCard.y}px, 0) rotate(0deg)`;
+                cardEl.style.zIndex = String(cardIndex + 1);
+                container.appendChild(cardEl);
+                activeCards.push(movingCard);
+
+                cardIndex++;
+                container.dataset.launched = String(cardIndex);
+                if (this.soundEnabled) this.playSound('drop');
+                if (cardIndex < cardQueue.length) {
+                    launchTimer = setTimeout(launchCard, launchInterval);
+                }
+            };
+
+            const animate = () => {
+                if (finished) return;
+                if (animationRunId !== (this.gameRunId || 0) || !container.isConnected) {
+                    finish(false);
+                    return;
+                }
+
+                let anyMoving = false;
+                const floor = screenHeight - cardHeight;
+                const rightWall = screenWidth - cardWidth;
+
+                activeCards.forEach(card => {
+                    if (card.resting) return;
+                    card.vy += gravity * physicsStep;
+                    card.x += card.vx * physicsStep;
+                    card.y += card.vy * physicsStep;
+                    card.rotation += card.rotationSpeed * physicsStep;
+
+                    if (card.y >= floor && card.vy > 0) {
+                        card.y = floor;
+                        card.vy = -card.vy * bounce;
+                        card.vx *= 0.9;
+                        card.rotationSpeed *= 0.82;
+                        container.dataset.bounces = String(Number(container.dataset.bounces) + 1);
+                        if (Math.abs(card.vy) < 1.2 && Math.abs(card.vx) < 0.35) {
+                            card.vy = 0;
+                            card.vx = 0;
+                            card.rotationSpeed = 0;
+                            card.resting = true;
+                        }
+                    }
+
+                    if (card.x <= 0 && card.vx < 0) {
+                        card.x = 0;
+                        card.vx = -card.vx * bounce;
+                        container.dataset.bounces = String(Number(container.dataset.bounces) + 1);
+                    } else if (card.x >= rightWall && card.vx > 0) {
+                        card.x = rightWall;
+                        card.vx = -card.vx * bounce;
+                        container.dataset.bounces = String(Number(container.dataset.bounces) + 1);
+                    }
+
+                    card.el.style.transform = `translate3d(${card.x}px, ${card.y}px, 0) rotate(${card.rotation}deg)`;
+                    if (!card.resting) anyMoving = true;
+                });
+
+                if (!anyMoving && cardIndex >= cardQueue.length) {
+                    settleFrames++;
+                    if (settleFrames >= settleFramesRequired) {
+                        finish(true);
+                        return;
+                    }
+                } else {
+                    settleFrames = 0;
+                }
+                animationFrame = requestAnimationFrame(animate);
+            };
+
+            launchCard();
+            animationFrame = requestAnimationFrame(animate);
+            maxTimer = setTimeout(() => finish(true), maxDuration);
         });
-
-        await Promise.race([
-            Promise.all(running),
-            new Promise(resolve => setTimeout(resolve, 3200))
-        ]);
-
-        container.remove();
-        this.renderFoundations();
     }
     
     // === 自動完成功能 ===

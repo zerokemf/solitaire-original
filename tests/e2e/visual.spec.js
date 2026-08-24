@@ -27,3 +27,39 @@ for (const target of targets) {
     expect(errors).toEqual([]);
   });
 }
+
+test('擷取經典破關反彈動畫中段畫面', async ({ page }, testInfo) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/?visual=classic-win-animation');
+  await page.evaluate(() => {
+    const suits = ['♠', '♥', '♦', '♣'];
+    const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const game = window.solitaire;
+    game.stock = [];
+    game.waste = [];
+    game.tableau = [[], [], [], [], [], [], []];
+    game.foundations = suits.map(suit => ranks.map((rank, index) => ({
+      suit,
+      rank,
+      value: index + 1,
+      color: suit === '♥' || suit === '♦' ? 'red' : 'black',
+      faceUp: true
+    })));
+    game.gameWon = false;
+    game.winAnimationSpeed = 1;
+    game.renderFoundations();
+    game.checkWin();
+  });
+
+  await page.waitForFunction(() => Number(document.querySelector('.win-animation-container')?.dataset.launched || 0) >= 16);
+  await page.waitForFunction(() => Number(document.querySelector('.win-animation-container')?.dataset.bounces || 0) >= 1);
+  const screenshotPath = testInfo.outputPath('classic-win-animation.png');
+  await page.screenshot({ path: screenshotPath, fullPage: false });
+  await testInfo.attach('classic-win-animation', { path: screenshotPath, contentType: 'image/png' });
+  expect(await page.locator('.falling-card').count()).toBeGreaterThanOrEqual(16);
+  expect(errors).toEqual([]);
+  await page.evaluate(() => window.solitaire.newGame(2026));
+});
