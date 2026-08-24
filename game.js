@@ -25,18 +25,35 @@ class Solitaire {
         this.autoSaveEnabled = true;
         this.SOLVER_SAVE_VERSION = 2;
         
-        // 解析 CSS 變數（支援 px, vmin, vmax）
+        // 將 CSS 自訂尺寸解析為實際像素；支援 px、viewport 單位、clamp() 與 calc()。
+        this.cssValueCache = new Map();
         this.parseCSSValue = (prop) => {
-            const val = getComputedStyle(document.documentElement).getPropertyValue(prop);
-            if (!val) return null;
-            const num = parseFloat(val);
-            if (isNaN(num)) return null;
-            if (val.includes('vmin')) {
-                return num * Math.min(window.innerWidth, window.innerHeight) / 100;
-            } else if (val.includes('vmax')) {
-                return num * Math.max(window.innerWidth, window.innerHeight) / 100;
+            const raw = getComputedStyle(document.documentElement).getPropertyValue(prop).trim();
+            if (!raw) return null;
+            const cacheKey = `${prop}:${raw}:${window.innerWidth}x${window.innerHeight}`;
+            if (this.cssValueCache.has(cacheKey)) return this.cssValueCache.get(cacheKey);
+
+            let pixels = null;
+            const simple = raw.match(/^(-?\d*\.?\d+)(px|vmin|vmax|vw|vh)?$/);
+            if (simple) {
+                const value = Number(simple[1]);
+                const unit = simple[2] || 'px';
+                if (unit === 'vmin') pixels = value * Math.min(window.innerWidth, window.innerHeight) / 100;
+                else if (unit === 'vmax') pixels = value * Math.max(window.innerWidth, window.innerHeight) / 100;
+                else if (unit === 'vw') pixels = value * window.innerWidth / 100;
+                else if (unit === 'vh') pixels = value * window.innerHeight / 100;
+                else pixels = value;
+            } else if (document.body) {
+                const probe = document.createElement('div');
+                probe.style.cssText = `position:absolute;visibility:hidden;pointer-events:none;width:var(${prop});height:0;`;
+                document.body.appendChild(probe);
+                pixels = probe.getBoundingClientRect().width;
+                probe.remove();
             }
-            return num;
+
+            if (!Number.isFinite(pixels) || pixels <= 0) return null;
+            this.cssValueCache.set(cacheKey, pixels);
+            return pixels;
         };
         
         // 花色定義
@@ -81,6 +98,11 @@ class Solitaire {
         
         // 自動完成狀態
         this.isAutoCompleting = false;
+        this.autoCompleteRunId = 0;
+
+        // 防止同一勝利狀態被重複計分或重複播放動畫
+        this.gameWon = false;
+        this.gameRunId = 0;
         
         // DOM 元素
         this.stockEl = document.getElementById('stock');
@@ -98,12 +120,82 @@ class Solitaire {
             this.newGame();
         }
     }
+
+    getModalFocusables(modal) {
+        if (!modal) return [];
+        return [...modal.querySelectorAll('button:not(:disabled), input:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')]
+            .filter(el => {
+                const style = getComputedStyle(el);
+                const rect = el.getBoundingClientRect();
+                return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+            });
+    }
+
+    showModal(modalId, preferredFocus = null) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return false;
+        const currentModal = document.querySelector('.modal:not(.hidden)');
+        if (!currentModal) {
+            this.modalReturnFocus = document.activeElement;
+        } else if (currentModal !== modal) {
+            currentModal.classList.add('hidden');
+            currentModal.inert = true;
+        }
+        document.querySelectorAll('body > *').forEach(el => {
+            if (el !== modal && el.tagName !== 'SCRIPT') el.inert = true;
+        });
+        modal.inert = false;
+        modal.classList.remove('hidden');
+        this.activeModal = modal;
+        requestAnimationFrame(() => {
+            const preferred = preferredFocus ? modal.querySelector(preferredFocus) : null;
+            (preferred || this.getModalFocusables(modal)[0] || modal).focus?.();
+        });
+        return true;
+    }
+
+    hideModal(modalId) {
+        const modal = typeof modalId === 'string' ? document.getElementById(modalId) : modalId;
+        if (!modal) return false;
+        modal.classList.add('hidden');
+        modal.inert = true;
+        document.querySelectorAll('body > *').forEach(el => { el.inert = false; });
+        this.activeModal = null;
+        const returnFocus = this.modalReturnFocus;
+        this.modalReturnFocus = null;
+        requestAnimationFrame(() => {
+            if (returnFocus?.isConnected) returnFocus.focus?.();
+        });
+        return true;
+    }
+
+    trapModalFocus(e, modal) {
+        const focusables = this.getModalFocusables(modal);
+        if (focusables.length === 0) {
+            e.preventDefault();
+            modal.focus?.();
+            return;
+        }
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        if (!modal.contains(active)) {
+            e.preventDefault();
+            (e.shiftKey ? last : first).focus();
+        } else if (e.shiftKey && active === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && active === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
     
     setupEventListeners() {
         // 新遊戲按鈕
         document.getElementById('new-game').addEventListener('click', () => this.newGame());
         document.getElementById('play-again').addEventListener('click', () => {
-            document.getElementById('win-modal').classList.add('hidden');
+            this.hideModal('win-modal');
             this.newGame();
         });
         
@@ -128,16 +220,16 @@ class Solitaire {
         // 統計按鈕
         document.getElementById('stats-btn').addEventListener('click', () => this.showStats());
         document.getElementById('stats-close').addEventListener('click', () => {
-            document.getElementById('stats-modal').classList.add('hidden');
+            this.hideModal('stats-modal');
         });
         document.getElementById('stats-clear').addEventListener('click', () => this.clearStats());
         
         // 挑戰按鈕
         document.getElementById('challenge-btn').addEventListener('click', () => {
-            document.getElementById('challenge-modal').classList.remove('hidden');
+            this.showModal('challenge-modal', '.challenge-time');
         });
         document.getElementById('challenge-close').addEventListener('click', () => {
-            document.getElementById('challenge-modal').classList.add('hidden');
+            this.hideModal('challenge-modal');
         });
         
         // 挑戰時間選擇
@@ -149,16 +241,45 @@ class Solitaire {
 
         // 挑戰結果按鈕
         document.getElementById('challenge-result-new')?.addEventListener('click', () => {
-            document.getElementById('challenge-result-modal').classList.add('hidden');
+            this.hideModal('challenge-result-modal');
             this.newGame();
         });
         document.getElementById('challenge-result-close')?.addEventListener('click', () => {
-            document.getElementById('challenge-result-modal').classList.add('hidden');
+            this.hideModal('challenge-result-modal');
         });
         
         // 主題切換（暗色/亮色模式）
         this.initTheme();
         document.getElementById('theme-toggle').addEventListener('click', () => this.toggleTheme());
+
+        // 手機版更多工具抽屜
+        const moreToggle = document.getElementById('mobile-more-toggle');
+        const secondaryActions = document.getElementById('secondary-actions');
+        const closeMoreTools = () => {
+            secondaryActions?.classList.remove('is-open');
+            moreToggle?.setAttribute('aria-expanded', 'false');
+            moreToggle?.setAttribute('aria-label', '顯示更多工具');
+        };
+        moreToggle?.addEventListener('click', () => {
+            const isOpen = secondaryActions?.classList.toggle('is-open') || false;
+            moreToggle.setAttribute('aria-expanded', String(isOpen));
+            moreToggle.setAttribute('aria-label', isOpen ? '隱藏更多工具' : '顯示更多工具');
+        });
+        secondaryActions?.addEventListener('click', (e) => {
+            if (e.target.closest('button') && window.innerWidth <= 600) closeMoreTools();
+        });
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 600 && !e.target.closest('.actions')) closeMoreTools();
+        });
+        window.addEventListener('resize', () => {
+            if (this.resizeFrame) cancelAnimationFrame(this.resizeFrame);
+            this.resizeFrame = requestAnimationFrame(() => {
+                this.cssValueCache.clear();
+                if (window.innerWidth > 600) closeMoreTools();
+                // 重新計算 setZoom 寫入的行內尺寸，避免裝置旋轉後沿用舊牌寬。
+                this.setZoom(0, false);
+            });
+        });
         
         // 發牌堆點擊
         this.stockEl.addEventListener('click', (e) => {
@@ -181,6 +302,9 @@ class Solitaire {
                 this.lastHoverSoundAt = now;
                 this.playSound('hover');
             });
+
+            // 點一下選牌、再點目標牌堆：桌機與觸控裝置都能使用。
+            this.gameBoard.addEventListener('click', (e) => this.handleCardClick(e));
         }
         
         // 拖曳事件
@@ -196,28 +320,72 @@ class Solitaire {
         // 雙擊自動移動到基礎牌堆
         document.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
         
-        // 鍵盤快捷鍵
+        // 鍵盤快捷鍵與牌面鍵盤操作
         document.addEventListener('keydown', (e) => {
+            const openModal = document.querySelector('.modal:not(.hidden)');
+            if (openModal && e.key === 'Tab') {
+                this.trapModalFocus(e, openModal);
+                return;
+            }
+            if (e.key === 'Escape') {
+                if (openModal) this.hideModal(openModal);
+                closeMoreTools();
+                return;
+            }
+            // Modal 開啟時，背景遊戲快捷鍵全部停用。
+            if (openModal) return;
+
+            const focusedCard = e.target.closest?.('.card.face-up');
+            if (focusedCard && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                this.handleCardClick({ target: focusedCard });
+                return;
+            }
+            if (e.target === this.stockEl && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                this.drawFromStock();
+                return;
+            }
+            const focusedPile = e.target.closest?.('.foundation, .tableau-pile');
+            if (focusedPile && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                if (this.selectedCard) {
+                    const isFoundation = focusedPile.classList.contains('foundation');
+                    const pileIndex = isFoundation
+                        ? this.foundationEls.indexOf(focusedPile)
+                        : this.tableauEls.indexOf(focusedPile);
+                    if (pileIndex >= 0) {
+                        this.tryMove({ source: isFoundation ? 'foundation' : 'tableau', pileIndex });
+                    }
+                } else {
+                    this.announce('請先選取要移動的牌');
+                }
+                return;
+            }
+
+            const isControl = e.target.closest?.('button, input, select, textarea, [contenteditable="true"]');
             // Ctrl/Cmd + Z: 撤銷
-            if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+            if (e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 this.undo();
+                return;
             }
+            if (isControl) return;
             // 空格: 發牌
-            if (e.key === ' ' && !e.target.matches('input')) {
+            if (e.key === ' ') {
                 e.preventDefault();
                 this.drawFromStock();
             }
             // H: 提示
-            if (e.key === 'h' && !e.target.matches('input')) {
+            if (e.key.toLowerCase() === 'h') {
                 this.toggleHint();
             }
             // N: 新遊戲
-            if (e.key === 'n' && !e.target.matches('input')) {
+            if (e.key.toLowerCase() === 'n') {
                 this.newGame();
             }
             // T: 切換主題
-            if (e.key === 't' && !e.target.matches('input')) {
+            if (e.key.toLowerCase() === 't') {
                 this.toggleTheme();
             }
         });
@@ -236,22 +404,22 @@ class Solitaire {
         
         // 死局對話框按鈕
         document.getElementById('deadlock-undo')?.addEventListener('click', () => {
-            document.getElementById('deadlock-modal').classList.add('hidden');
+            this.hideModal('deadlock-modal');
             this.undo();
         });
         document.getElementById('deadlock-new')?.addEventListener('click', () => {
-            document.getElementById('deadlock-modal').classList.add('hidden');
+            this.hideModal('deadlock-modal');
             this.newGame();
         });
         document.getElementById('deadlock-close')?.addEventListener('click', () => {
-            document.getElementById('deadlock-modal').classList.add('hidden');
+            this.hideModal('deadlock-modal');
         });
         
         // 遊戲選擇對話框
         document.getElementById('game-number')?.addEventListener('click', () => this.showGameSelectModal());
         document.getElementById('game-select-ok')?.addEventListener('click', () => this.startSelectedGame());
         document.getElementById('game-select-cancel')?.addEventListener('click', () => {
-            document.getElementById('game-select-modal').classList.add('hidden');
+            this.hideModal('game-select-modal');
         });
         document.getElementById('game-number-input')?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') this.startSelectedGame();
@@ -287,8 +455,7 @@ class Solitaire {
         const input = document.getElementById('game-number-input');
         if (modal && input) {
             input.value = '';
-            modal.classList.remove('hidden');
-            input.focus();
+            this.showModal('game-select-modal', '#game-number-input');
         } else {
             // 如果沒有對話框，直接開始隨機遊戲
             this.newGame(this.getRandomGameNumber());
@@ -307,7 +474,7 @@ class Solitaire {
             gameNum = this.getRandomGameNumber();
         }
         
-        if (modal) modal.classList.add('hidden');
+        if (modal) this.hideModal('game-select-modal');
         this.newGame(gameNum);
     }
     
@@ -318,6 +485,8 @@ class Solitaire {
     // === 遊戲初始化 ===
     
     newGame(gameNumber = null) {
+        this.gameRunId = (this.gameRunId || 0) + 1;
+        document.querySelectorAll('.win-animation-container').forEach(el => el.remove());
         if (gameNumber === null) {
             gameNumber = this.getRandomGameNumber();
         }
@@ -332,14 +501,17 @@ class Solitaire {
         this.history = [];
         this.selectedCard = null;
         this.isDragging = false;
+        this.gameWon = false;
         
         // 重置提示狀態
         this.hintEnabled = false;
-        document.getElementById('hint-toggle')?.classList.remove('active');
+        const hintButton = document.getElementById('hint-toggle');
+        hintButton?.classList.remove('active');
+        hintButton?.setAttribute('aria-pressed', 'false');
         this.clearHints();
         
-        // 重置自動完成狀態
-        this.isAutoCompleting = false;
+        // 取消上一局尚未結束的非同步自動完成流程
+        this.cancelAutoComplete();
         
         if (this.timerInterval) clearInterval(this.timerInterval);
         this.timerInterval = setInterval(() => this.updateTimer(), 1000);
@@ -375,6 +547,8 @@ class Solitaire {
                 tableau: this.tableau,
                 moves: this.moves,
                 seconds: this.seconds,
+                drawCount: this.drawCount,
+                dealSeed: this.dealSeed || this.gameNumber,
                 history: this.history.slice(-30),
                 solverVersion: this.SOLVER_SAVE_VERSION
             };
@@ -394,6 +568,10 @@ class Solitaire {
                 localStorage.removeItem('solitaire-save');
                 return false;
             }
+            if (!this.isValidSaveData(data)) {
+                localStorage.removeItem('solitaire-save');
+                return false;
+            }
 
             // 恢復遊戲狀態
             this.gameNumber = data.gameNumber;
@@ -403,7 +581,12 @@ class Solitaire {
             this.tableau = data.tableau;
             this.moves = data.moves;
             this.seconds = data.seconds;
-            this.history = data.history || [];
+            this.drawCount = data.drawCount === 3 ? 3 : 1;
+            this.dealSeed = Number.isInteger(data.dealSeed) ? data.dealSeed : data.gameNumber;
+            const rawHistory = Array.isArray(data.history) ? data.history.slice(-30) : [];
+            this.history = rawHistory.filter(state => this.isValidHistoryState(state, data.gameNumber));
+            this.gameWon = false;
+            this.updateDifficultyButton();
 
             this.updateDisplay();
             this.updateInfo();
@@ -416,19 +599,65 @@ class Solitaire {
             console.log('[接龍] 遊戲已自動恢復');
             return true;
         } catch (e) {
+            console.warn('[接龍] 自動存檔損壞，已清除並重新開始', e);
+            localStorage.removeItem('solitaire-save');
             return false;
         }
+    }
+
+    isValidSaveData(data) {
+        if (!data || !Array.isArray(data.stock) || !Array.isArray(data.waste)) return false;
+        if (!Array.isArray(data.foundations) || data.foundations.length !== 4) return false;
+        if (!Array.isArray(data.tableau) || data.tableau.length !== 7) return false;
+        if (!data.foundations.every(Array.isArray) || !data.tableau.every(Array.isArray)) return false;
+        if (!Number.isInteger(data.gameNumber) || data.gameNumber < this.MIN_GAME || data.gameNumber > this.MAX_GAME) return false;
+        if (data.drawCount !== undefined && data.drawCount !== 1 && data.drawCount !== 3) return false;
+        if (data.dealSeed !== undefined && (!Number.isInteger(data.dealSeed) || data.dealSeed < this.MIN_GAME)) return false;
+        if (!Number.isFinite(data.moves) || data.moves < 0 || !Number.isFinite(data.seconds) || data.seconds < 0) return false;
+
+        const cards = [
+            ...data.stock,
+            ...data.waste,
+            ...data.foundations.flat(),
+            ...data.tableau.flat()
+        ];
+        if (cards.length !== 52) return false;
+
+        const seen = new Set();
+        for (const card of cards) {
+            if (!card || !this.suits.includes(card.suit)) return false;
+            if (!Number.isInteger(card.value) || card.value < 1 || card.value > 13) return false;
+            if (card.rank !== this.ranks[card.value - 1]) return false;
+            if (card.color !== this.suitColors[card.suit] || typeof card.faceUp !== 'boolean') return false;
+            seen.add(`${card.suit}:${card.value}`);
+        }
+        return seen.size === 52;
+    }
+
+    isValidHistoryState(state, gameNumber = this.gameNumber) {
+        if (!state || !Number.isFinite(state.moves) || state.moves < 0) return false;
+        return this.isValidSaveData({
+            ...state,
+            gameNumber,
+            seconds: 0,
+            drawCount: this.drawCount,
+            dealSeed: this.dealSeed
+        });
     }
     
     // 產生可解牌局。每個候選牌局都先用解牌器驗證，避免只靠評分造成死棋。
     ensureSolvable() {
         const maxAttempts = 140;
         const nodeLimit = this.drawCount === 3 ? 70000 : 45000;
-        let bestSeed = this.gameNumber;
+        const requestedGameNumber = this.normalizeGameNumber(this.gameNumber);
+        this.gameNumber = requestedGameNumber;
+        let bestSeed = requestedGameNumber;
         let bestScore = -Infinity;
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            const trySeed = this.normalizeGameNumber(this.gameNumber + attempt);
+            // 每個公開遊戲編號使用彼此不重疊的候選 seed 序列。
+            // 如此能保留玩家輸入的編號，也避免相鄰編號被改成同一局。
+            const trySeed = requestedGameNumber + attempt * (this.MAX_GAME - this.MIN_GAME + 1);
             this.prepareSeededDeal(trySeed);
             this.spreadStockCards();
 
@@ -442,13 +671,15 @@ class Solitaire {
             }
 
             if (this.solveCurrentDeal({ nodeLimit })) {
-                this.gameNumber = trySeed;
-                console.log(`[接龍] 已驗證可解牌局 #${trySeed}，搜尋 ${attempt + 1} 次`);
+                this.dealSeed = trySeed;
+                console.log(`[接龍] 已驗證遊戲 #${requestedGameNumber}，搜尋 ${attempt + 1} 次`);
                 return;
             }
         }
 
-        console.warn(`[接龍] ${maxAttempts} 個候選牌局未通過解牌器，改用保證可解安全牌局。最佳候選 #${bestSeed}，分數 ${bestScore}`);
+        console.warn(`[接龍] 遊戲 #${requestedGameNumber} 的 ${maxAttempts} 個候選牌局未通過解牌器，改用保證可解安全牌局。最佳 seed ${bestSeed}，分數 ${bestScore}`);
+        this.gameNumber = requestedGameNumber;
+        this.dealSeed = requestedGameNumber;
         this.createGuaranteedSolvableDeal();
     }
 
@@ -458,7 +689,7 @@ class Solitaire {
     }
 
     prepareSeededDeal(seed) {
-        this.gameNumber = seed;
+        this.dealSeed = seed;
         this.foundations = [[], [], [], []];
         this.tableau = [[], [], [], [], [], [], []];
         this.waste = [];
@@ -485,6 +716,7 @@ class Solitaire {
         ];
 
         this.gameNumber = this.normalizeGameNumber(this.gameNumber);
+        this.dealSeed = this.dealSeed || this.gameNumber;
         this.stock = [];
         this.waste = [];
         this.foundations = [[], [], [], []];
@@ -564,7 +796,7 @@ class Solitaire {
             if (!card) return;
 
             for (let f = 0; f < 4; f++) {
-                if (this.canPlaceOnFoundationState(card, state.foundations[f])) {
+                if (this.canPlaceOnFoundationState(card, state.foundations[f], f)) {
                     moves.push({ type: 'toFoundation', source, pileIndex, cardIndex, foundationIndex: f });
                 }
             }
@@ -669,7 +901,8 @@ class Solitaire {
     updateGameNumber() {
         const el = document.getElementById('game-number');
         if (el) {
-            el.textContent = `#${this.gameNumber}`;
+            el.textContent = `第 ${this.gameNumber} 局`;
+            el.setAttribute('aria-label', `目前遊戲編號 ${this.gameNumber}，點擊更換`);
         }
     }
 
@@ -706,7 +939,7 @@ class Solitaire {
             }
             // 檢查是否能送上基座
             for (let f = 0; f < 4; f++) {
-                if (this.canPlaceOnFoundationState(card, this.foundations[f])) {
+                if (this.canPlaceOnFoundationState(card, this.foundations[f], f)) {
                     moveCount++;
                     score += 10; // 基座移動非常有價值
                 }
@@ -829,7 +1062,7 @@ class Solitaire {
                 const card = pile[pile.length - 1];
                 if (!card.faceUp || card.value > 3) continue;
                 for (let f = 0; f < 4; f++) {
-                    if (this.canPlaceOnFoundationState(card, sim.foundations[f])) {
+                    if (this.canPlaceOnFoundationState(card, sim.foundations[f], f)) {
                         pile.pop();
                         sim.foundations[f].push(card);
                         if (pile.length > 0 && !pile[pile.length - 1].faceUp) {
@@ -877,7 +1110,7 @@ class Solitaire {
                 const card = pile[pile.length - 1];
                 if (!card.faceUp) continue;
                 for (let f = 0; f < 4; f++) {
-                    if (this.canPlaceOnFoundationState(card, sim.foundations[f])) {
+                    if (this.canPlaceOnFoundationState(card, sim.foundations[f], f)) {
                         pile.pop();
                         sim.foundations[f].push(card);
                         if (pile.length > 0 && !pile[pile.length - 1].faceUp) {
@@ -929,7 +1162,7 @@ class Solitaire {
                 let placed = false;
                 // 試基座
                 for (let f = 0; f < 4; f++) {
-                    if (this.canPlaceOnFoundationState(card, sim.foundations[f])) {
+                    if (this.canPlaceOnFoundationState(card, sim.foundations[f], f)) {
                         sim.foundations[f].push(card);
                         foundationCards++;
                         placed = true;
@@ -1030,6 +1263,11 @@ class Solitaire {
     // === 發牌堆操作 ===
     
     drawFromStock() {
+        if (this.isAutoCompleting) return;
+        // 空牌庫也沒有廢牌時，點擊不應污染復原紀錄或步數。
+        if (this.stock.length === 0 && this.waste.length === 0) return;
+        // 翻牌／回收會改變 waste 索引，舊選牌不得繼續沿用。
+        this.clearSelection();
         this.saveState();
         
         if (this.stock.length === 0) {
@@ -1090,7 +1328,8 @@ class Solitaire {
     /**
      * 檢查是否可放到 foundation（任意狀態）— 由評分/模擬與 hasAnyLegalMove 使用
      */
-    canPlaceOnFoundationState(card, foundation) {
+    canPlaceOnFoundationState(card, foundation, foundationIndex = -1) {
+        if (foundationIndex >= 0 && this.suits[foundationIndex] !== card.suit) return false;
         if (foundation.length === 0) {
             return card.value === 1;
         }
@@ -1108,6 +1347,44 @@ class Solitaire {
         const topCard = pile[pile.length - 1];
         if (!topCard.faceUp) return false;
         return card.color !== topCard.color && card.value === topCard.value - 1;
+    }
+
+    getReachableStockCards() {
+        const stock = this.stock.map(card => ({ ...card }));
+        const waste = this.waste.map(card => ({ ...card }));
+        const reachable = [];
+        const seen = new Set();
+        const record = (card) => {
+            if (!card) return;
+            const key = `${card.suit}:${card.value}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                reachable.push(card);
+            }
+        };
+        const drawPass = () => {
+            while (stock.length > 0) {
+                let topCard = null;
+                const count = Math.min(this.drawCount, stock.length);
+                for (let i = 0; i < count; i++) {
+                    topCard = stock.pop();
+                    topCard.faceUp = true;
+                    waste.push(topCard);
+                }
+                record(topCard);
+            }
+        };
+
+        // 先走完目前這一輪，再回收一次並走完整輪；若途中沒有牌被移走，
+        // 之後每次循環的可見頂牌會重複，因此兩輪已涵蓋全部可達牌。
+        drawPass();
+        while (waste.length > 0) {
+            const card = waste.pop();
+            card.faceUp = false;
+            stock.push(card);
+        }
+        drawPass();
+        return reachable;
     }
 
     hasAnyLegalMove() {
@@ -1149,11 +1426,19 @@ class Solitaire {
             }
         }
 
-        // 3. stock 或 waste 中（非頂牌）若有任一張未來抽到後可放到任何位置，
-        //    就不算死局（因為玩家可以抽牌或循環）
-        const wasteRest = this.waste.slice(0, Math.max(0, this.waste.length - 1));
-        const drawable = this.stock.concat(wasteRest);
-        for (const c of drawable) {
+        // 3. 基礎牌堆頂牌可合法退回 tableau 時，仍然有路可走。
+        for (let foundationIndex = 0; foundationIndex < 4; foundationIndex++) {
+            const foundation = this.foundations[foundationIndex];
+            if (foundation.length === 0) continue;
+            const card = foundation[foundation.length - 1];
+            for (let t = 0; t < 7; t++) {
+                if (this.canPlaceOnTableau(card, t)) return true;
+            }
+        }
+
+        // 4. 只檢查翻牌循環中真正能成為 waste 頂牌的牌。
+        // 翻三張時，中間兩張不可直接操作，不能把它們當成合法下一步。
+        for (const c of this.getReachableStockCards()) {
             // 假設這張牌會被抽出來面朝上
             const card = { ...c, faceUp: true };
             for (let f = 0; f < 4; f++) {
@@ -1168,15 +1453,13 @@ class Solitaire {
     }
     
     showDeadlockModal() {
-        const modal = document.getElementById('deadlock-modal');
-        if (modal) {
-            modal.classList.remove('hidden');
-        }
+        this.showModal('deadlock-modal', '#deadlock-undo');
     }
     
     // === 拖曳處理 ===
     
     handleMouseDown(e) {
+        if (this.isAutoCompleting) return;
         const cardEl = e.target.closest('.card');
         if (!cardEl || cardEl.classList.contains('face-down')) {
             if (cardEl && cardEl.classList.contains('face-down')) {
@@ -1194,6 +1477,7 @@ class Solitaire {
     }
     
     handleTouchStart(e) {
+        if (this.isAutoCompleting) return;
         const touch = e.touches[0];
         const cardEl = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.card');
         
@@ -1387,6 +1671,7 @@ class Solitaire {
         this.isDragging = false;
         this.dragSource = null;
         this.draggedCards = [];
+        this.lastDragEndedAt = performance.now();
 
         this.updateDisplay();
         
@@ -1505,9 +1790,71 @@ class Solitaire {
         }
     }
     
-    // === 點擊選擇（備用操作方式）===
+    // === 點擊選擇（桌機與觸控備用操作方式）===
+
+    handleCardClick(e) {
+        if (this.isDragging || this.isAutoCompleting) return;
+        if (this.lastDragEndedAt && performance.now() - this.lastDragEndedAt < 300) return;
+
+        const cardEl = e.target.closest('.card');
+        if (!cardEl || cardEl.classList.contains('face-down') || cardEl.closest('#stock')) return;
+
+        const cardInfo = this.getCardFromElement(cardEl);
+        if (!cardInfo || !cardInfo.card) return;
+
+        if (this.selectedCard) {
+            const sameCard = this.selectedCard.source === cardInfo.source
+                && this.selectedCard.pileIndex === cardInfo.pileIndex
+                && this.selectedCard.cardIndex === cardInfo.cardIndex;
+            if (sameCard) {
+                this.clearSelection();
+                this.announce('已取消選取');
+                return;
+            }
+
+            if (cardInfo.source === 'foundation' || cardInfo.source === 'tableau') {
+                const canMove = cardInfo.source === 'foundation'
+                    ? this.canPlaceOnFoundation(this.selectedCard.card, cardInfo.pileIndex)
+                    : this.canPlaceOnTableau(this.selectedCard.card, cardInfo.pileIndex);
+                if (canMove) {
+                    this.tryMove({ source: cardInfo.source, pileIndex: cardInfo.pileIndex });
+                    return;
+                }
+            }
+        }
+
+        if (!this.isMovableCardInfo(cardInfo)) {
+            this.clearSelection();
+            return;
+        }
+
+        this.clearSelection();
+        this.selectedCard = cardInfo;
+        cardEl.classList.add('selected');
+        this.announce(`已選取 ${cardInfo.card.rank}${cardInfo.card.suit}`);
+    }
+
+    isMovableCardInfo(cardInfo) {
+        if (!cardInfo?.card?.faceUp) return false;
+        if (cardInfo.source === 'waste') return cardInfo.cardIndex === this.waste.length - 1;
+        if (cardInfo.source === 'foundation') {
+            return cardInfo.cardIndex === this.foundations[cardInfo.pileIndex].length - 1;
+        }
+        if (cardInfo.source === 'tableau') {
+            const pile = this.tableau[cardInfo.pileIndex];
+            if (cardInfo.cardIndex < 0 || cardInfo.cardIndex >= pile.length) return false;
+            for (let i = cardInfo.cardIndex; i < pile.length - 1; i++) {
+                const lower = pile[i];
+                const upper = pile[i + 1];
+                if (!upper.faceUp || lower.color === upper.color || upper.value !== lower.value - 1) return false;
+            }
+            return true;
+        }
+        return false;
+    }
     
     handleDoubleClick(e) {
+        if (this.isAutoCompleting) return;
         const cardEl = e.target.closest('.card');
         if (!cardEl || cardEl.classList.contains('face-down')) return;
         
@@ -1524,7 +1871,14 @@ class Solitaire {
         const card = cardInfo.card;
         if (!card) return false;
         
-        // 只能移動最上面的牌到 foundation
+        // 只能移動來源牌堆最上面的牌到 foundation
+        if (cardInfo.source === 'waste' && cardInfo.cardIndex !== this.waste.length - 1) {
+            return false;
+        }
+        if (cardInfo.source === 'foundation'
+            && cardInfo.cardIndex !== this.foundations[cardInfo.pileIndex].length - 1) {
+            return false;
+        }
         if (cardInfo.source === 'tableau') {
             const pile = this.tableau[cardInfo.pileIndex];
             if (cardInfo.cardIndex !== pile.length - 1) {
@@ -1653,6 +2007,8 @@ class Solitaire {
     
     canPlaceOnFoundation(card, foundationIndex) {
         const foundation = this.foundations[foundationIndex];
+
+        if (this.suits[foundationIndex] !== card.suit) return false;
         
         if (foundation.length === 0) {
             return card.value === 1;
@@ -1677,34 +2033,37 @@ class Solitaire {
     
     // === 縮放功能 ===
     
-    setZoom(delta) {
-        this.zoomLevel = Math.max(0.5, Math.min(2, this.zoomLevel + delta));
+    setZoom(delta, shouldAnnounce = true) {
+        this.zoomLevel = Math.max(0.8, Math.min(1.25, this.zoomLevel + delta));
         const root = document.documentElement;
-        const baseWidth = 8;
-        const baseHeight = 11.2;
-        const baseRadius = 0.7;
-        const baseGap = 1.4;
-        // 間距隨縮放增加，但保持最小間距防止重疊
-        const baseOffset = Math.max(3.4, baseHeight * 0.34 * this.zoomLevel);
+        const boardWidth = this.gameBoard?.getBoundingClientRect().width || window.innerWidth;
 
-        // 縮放只影響牌桌（卡片大小、間距、字面字體），不動 header/menu，
-        // 避免按鈕變大後換行造成介面跑版。
-        root.style.setProperty('--card-width', `${baseWidth * this.zoomLevel}vmin`);
-        root.style.setProperty('--card-height', `${baseHeight * this.zoomLevel}vmin`);
-        root.style.setProperty('--card-radius', `${baseRadius * this.zoomLevel}vmin`);
-        root.style.setProperty('--pile-gap', `${Math.max(baseGap, baseGap * this.zoomLevel)}vmin`);
-        root.style.setProperty('--tableau-offset', `${baseOffset}vmin`);
+        let cardWidth;
+        if (window.innerWidth <= 600) {
+            // 手機七列必須永遠完整留在畫面內；縮放只調整疊牌展開量與字面。
+            const tableauWidth = document.querySelector('.tableau')?.getBoundingClientRect().width
+                || Math.max(280, window.innerWidth - 14);
+            const gap = this.parseCSSValue('--pile-gap') || 2;
+            cardWidth = Math.max(40, (tableauWidth - gap * 6) / 7);
+        } else {
+            const fieldWidth = Math.min(840, Math.max(560, boardWidth - 48));
+            const gap = Math.max(8, Math.min(14, fieldWidth * 0.012));
+            const fittedWidth = (fieldWidth - gap * 6) / 7;
+            cardWidth = Math.min(fittedWidth, 96 * this.zoomLevel);
+        }
 
-        // 容器寬度也跟著變大，確保牌桌橫向擺得下
-        root.style.setProperty('--container-width', `${Math.min(98, 90 * this.zoomLevel)}vmin`);
-
-        // 卡面內字體
-        root.style.setProperty('--font-rank', `${1.5 * this.zoomLevel}vmin`);
-        root.style.setProperty('--font-suit', `${1.1 * this.zoomLevel}vmin`);
-        root.style.setProperty('--font-center', `${3 * this.zoomLevel}vmin`);
-
-        // 重新渲染牌桌以更新間距
+        const cardHeight = cardWidth * 1.4;
+        const tableauOffset = Math.max(18, Math.min(38, cardWidth * 0.34 * this.zoomLevel));
+        root.style.setProperty('--card-width', `${cardWidth}px`);
+        root.style.setProperty('--card-height', `${cardHeight}px`);
+        root.style.setProperty('--card-radius', `${Math.max(6, cardWidth * 0.094)}px`);
+        root.style.setProperty('--tableau-offset', `${tableauOffset}px`);
+        root.style.setProperty('--font-rank', `${Math.max(14, cardWidth * 0.22)}px`);
+        root.style.setProperty('--font-suit', `${Math.max(11, cardWidth * 0.17)}px`);
+        root.style.setProperty('--font-center', `${Math.max(24, cardWidth * 0.48)}px`);
+        this.cssValueCache.clear();
         this.renderTableau();
+        if (shouldAnnounce) this.announce(`牌面縮放 ${Math.round(this.zoomLevel * 100)}%`);
     }
     
     // === 提示功能 ===
@@ -1713,6 +2072,8 @@ class Solitaire {
         this.hintEnabled = !this.hintEnabled;
         const btn = document.getElementById('hint-toggle');
         btn.classList.toggle('active', this.hintEnabled);
+        btn.setAttribute('aria-pressed', String(this.hintEnabled));
+        this.announce(this.hintEnabled ? '提示已開啟' : '提示已關閉');
         
         if (this.hintEnabled) {
             this.showHints();
@@ -1722,13 +2083,23 @@ class Solitaire {
     }
     
     // === 難度切換 ===
+
+    updateDifficultyButton() {
+        const btn = document.getElementById('difficulty-toggle');
+        if (!btn) return;
+        btn.textContent = `翻 ${this.drawCount}`;
+        btn.classList.toggle('btn-active', this.drawCount === 3);
+        btn.setAttribute('aria-pressed', String(this.drawCount === 3));
+        btn.setAttribute('aria-label', this.drawCount === 1
+            ? '目前每次翻 1 張，點擊切換為 3 張'
+            : '目前每次翻 3 張，點擊切換為 1 張');
+        btn.title = this.drawCount === 1 ? '難度：每次翻 1 張' : '難度：每次翻 3 張';
+    }
     
     toggleDifficulty() {
         this.drawCount = this.drawCount === 1 ? 3 : 1;
-        const btn = document.getElementById('difficulty-toggle');
-        // 用顏色狀態 + tooltip 標示，按鈕本身保持精簡
-        btn.classList.toggle('btn-active', this.drawCount === 3);
-        btn.title = this.drawCount === 1 ? '難度: 簡單（每次翻 1 張）' : '難度: 困難（每次翻 3 張）';
+        this.updateDifficultyButton();
+        this.announce(`已切換為每次翻 ${this.drawCount} 張`);
         // 抽牌數會影響可解性，切換難度後必須重新產生一局並再次驗證。
         this.newGame(this.gameNumber);
     }
@@ -1745,7 +2116,10 @@ class Solitaire {
         const btn = document.getElementById('sound-toggle');
         btn.textContent = this.soundEnabled ? '🔊' : '🔇';
         btn.classList.toggle('btn-active', this.soundEnabled);
+        btn.setAttribute('aria-pressed', String(this.soundEnabled));
+        btn.setAttribute('aria-label', this.soundEnabled ? '關閉音效' : '開啟音效');
         btn.title = this.soundEnabled ? '音效已開啟（點擊關閉）' : '音效已關閉（點擊開啟）';
+        this.announce(this.soundEnabled ? '音效已開啟' : '音效已關閉');
         
         // 測試音效（如果開啟）
         if (this.soundEnabled) {
@@ -1817,7 +2191,7 @@ class Solitaire {
         document.getElementById('stat-streak').textContent = this.stats.maxStreak;
         document.getElementById('stat-current-streak').textContent = this.stats.currentStreak;
 
-        document.getElementById('stats-modal').classList.remove('hidden');
+        this.showModal('stats-modal', '#stats-close');
     }
     
     clearStats() {
@@ -1838,7 +2212,7 @@ class Solitaire {
 
         this.challengeMode = true;
         this.challengeTime = minutes * 60;
-        document.getElementById('challenge-modal').classList.add('hidden');
+        this.hideModal('challenge-modal');
         const scoreEl = document.getElementById('challenge-score');
         if (scoreEl) scoreEl.classList.remove('hidden');
         const timerEl = document.getElementById('challenge-timer');
@@ -1883,7 +2257,7 @@ class Solitaire {
                 title.textContent = '⏰ 時間到！';
                 message.textContent = '挑戰失敗，再試一次吧！';
             }
-            modal.classList.remove('hidden');
+            this.showModal('challenge-result-modal', '#challenge-result-new');
         } else {
             // 備援：若 modal 不存在才用 alert
             if (win) {
@@ -1929,12 +2303,14 @@ class Solitaire {
     
     updateThemeButton(isDark) {
         const btn = document.getElementById('theme-toggle');
+        btn.setAttribute('aria-pressed', String(isDark));
+        btn.setAttribute('aria-label', isDark ? '切換為亮色主題' : '切換為暗色主題');
         if (isDark) {
             btn.textContent = '☀️';
-            btn.title = '目前: 暗色模式（點擊切換亮色）';
+            btn.title = '目前：暗色模式（點擊切換亮色）';
         } else {
             btn.textContent = '🌙';
-            btn.title = '目前: 亮色模式（點擊切換暗色）';
+            btn.title = '目前：亮色模式（點擊切換暗色）';
         }
     }
     
@@ -2162,13 +2538,25 @@ class Solitaire {
     
     undo() {
         if (this.history.length === 0) return;
-        
+
+        const wasWon = this.gameWon;
+        this.cancelAutoComplete();
+        this.gameRunId = (this.gameRunId || 0) + 1;
+        document.querySelectorAll('.win-animation-container').forEach(el => el.remove());
         const state = this.history.pop();
         this.stock = state.stock;
         this.waste = state.waste;
         this.foundations = state.foundations;
         this.tableau = state.tableau;
         this.moves = state.moves;
+        this.gameWon = false;
+        this.skipAutoCompleteOnce = true;
+
+        if (wasWon) {
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            this.timerInterval = setInterval(() => this.updateTimer(), 1000);
+            this.hideModal('win-modal');
+        }
         
         this.clearSelection();
         this.updateDisplay();
@@ -2179,7 +2567,9 @@ class Solitaire {
     
     checkWin() {
         const totalFoundationCards = this.foundations.reduce((sum, f) => sum + f.length, 0);
-        if (totalFoundationCards === 52) {
+        if (totalFoundationCards === 52 && !this.gameWon) {
+            const completedGameRunId = this.gameRunId || 0;
+            this.gameWon = true;
             clearInterval(this.timerInterval);
             
             // 記錄勝利
@@ -2196,9 +2586,10 @@ class Solitaire {
             
             // 播放勝利動畫
             this.playWinAnimation().then(() => {
+                if (completedGameRunId !== (this.gameRunId || 0) || !this.gameWon) return;
                 document.getElementById('final-moves').textContent = this.moves;
                 document.getElementById('final-time').textContent = this.formatTime(this.seconds);
-                document.getElementById('win-modal').classList.remove('hidden');
+                this.showModal('win-modal', '#play-again');
             });
         }
     }
@@ -2208,8 +2599,6 @@ class Solitaire {
     async playWinAnimation() {
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (prefersReducedMotion) {
-            this.foundations = [[], [], [], []];
-            this.renderFoundations();
             return;
         }
 
@@ -2235,8 +2624,8 @@ class Solitaire {
         }
 
         const foundationRects = this.foundationEls.map(el => el.getBoundingClientRect());
-        this.foundations = [[], [], [], []];
-        this.renderFoundations();
+        // 動畫只暫時清空畫面，不可破壞已完成的牌局資料。
+        this.foundationEls.forEach(el => { el.innerHTML = ''; });
 
         const fragment = document.createDocumentFragment();
         const animations = cardQueue.map(({ card, foundationIndex }, index) => {
@@ -2310,6 +2699,7 @@ class Solitaire {
         ]);
 
         container.remove();
+        this.renderFoundations();
     }
     
     // === 自動完成功能 ===
@@ -2327,12 +2717,21 @@ class Solitaire {
         
         return true;
     }
+
+    cancelAutoComplete() {
+        this.autoCompleteRunId = (this.autoCompleteRunId || 0) + 1;
+        this.isAutoCompleting = false;
+    }
     
     async autoComplete() {
         if (this.isAutoCompleting) return;
         this.isAutoCompleting = true;
+        const runId = (this.autoCompleteRunId || 0) + 1;
+        this.autoCompleteRunId = runId;
+        let historySaved = false;
         
         const moveCard = async () => {
+            if (runId !== this.autoCompleteRunId) return;
             // 找一張可以移到 foundation 的牌
             let moved = false;
             
@@ -2345,13 +2744,22 @@ class Solitaire {
                 
                 for (let foundationIndex = 0; foundationIndex < 4; foundationIndex++) {
                     if (this.canPlaceOnFoundation(card, foundationIndex)) {
+                        if (!historySaved) {
+                            this.saveState();
+                            historySaved = true;
+                        }
                         // 執行飛行動畫
                         await this.animateCardToFoundation(pileIndex, foundationIndex, 'tableau');
+
+                        // 復原／新遊戲可能在動畫期間取消這次流程。
+                        if (runId !== this.autoCompleteRunId) return;
                         
                         // 移動牌
                         pile.pop();
                         this.foundations[foundationIndex].push(card);
+                        this.moves++;
                         this.updateDisplay();
+                        this.updateInfo();
                         
                         moved = true;
                         break;
@@ -2369,7 +2777,9 @@ class Solitaire {
                     this.checkWin();
                 } else {
                     // 繼續下一張
-                    setTimeout(moveCard, 80);
+                    setTimeout(() => {
+                        if (runId === this.autoCompleteRunId) moveCard();
+                    }, 80);
                 }
             } else {
                 this.isAutoCompleting = false;
@@ -2428,6 +2838,10 @@ class Solitaire {
     }
     
     checkAutoComplete() {
+        if (this.skipAutoCompleteOnce) {
+            this.skipAutoCompleteOnce = false;
+            return;
+        }
         if (this.canAutoComplete() && !this.isAutoCompleting) {
             this.autoComplete();
         }
@@ -2478,6 +2892,13 @@ class Solitaire {
                 cardEl.style.zIndex = i + 1;
                 cardEl.dataset.source = 'waste';
                 cardEl.dataset.cardIndex = startIndex + i;
+                const isTopCard = startIndex + i === this.waste.length - 1;
+                if (!isTopCard) {
+                    cardEl.classList.add('covered');
+                    cardEl.tabIndex = -1;
+                    cardEl.removeAttribute('role');
+                    cardEl.setAttribute('aria-hidden', 'true');
+                }
                 this.wasteEl.appendChild(cardEl);
             }
         }
@@ -2529,8 +2950,15 @@ class Solitaire {
     createCardElement(card, faceUp) {
         const el = document.createElement('div');
         el.className = `card ${faceUp ? 'face-up' : 'face-down'}`;
+        el.setAttribute('aria-label', faceUp && card.rank ? `${card.rank}${card.suit}` : '背面紙牌');
+        if (faceUp) {
+            el.setAttribute('role', 'button');
+            el.tabIndex = 0;
+        } else {
+            el.setAttribute('aria-hidden', 'true');
+        }
 
-        // 懸停音效改在 setupEventListeners 用單一 delegated listener 處理，
+        // 懸停音效改在 setupEventListeners 用單一 delegated listener處理，
         // 不在每張牌上掛 listener 以節省記憶體與 GC 壓力。
 
 
@@ -2594,6 +3022,13 @@ class Solitaire {
         this.selectedCard = null;
     }
     
+    announce(message) {
+        const status = document.getElementById('game-status');
+        if (!status) return;
+        status.textContent = '';
+        requestAnimationFrame(() => { status.textContent = message; });
+    }
+
     updateInfo() {
         document.getElementById('moves').textContent = this.moves;
         const undoBtn = document.getElementById('undo-btn');
@@ -2612,8 +3047,9 @@ class Solitaire {
     }
     
     formatTime(seconds) {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
+        const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+        const m = Math.floor(safeSeconds / 60);
+        const s = safeSeconds % 60;
         return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
 }

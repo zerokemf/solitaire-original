@@ -1,0 +1,15 @@
+{
+  "name": "solitaire-original",
+  "version": "2.0.0",
+  "private": true,
+  "description": "現代化、可測試的經典 Klondike 接龍遊戲",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:logic": "node --test tests/solitaire.test.js",
+    "test:e2e": "playwright test",
+    "verify": "npm run test && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

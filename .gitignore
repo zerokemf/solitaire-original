@@ -11,6 +11,8 @@ yarn-error.log*
 dist/
 build/
 out/
+test-results/
+playwright-report/
 
 # Editor
 .vscode/

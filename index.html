@@ -2,187 +2,183 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>經典接龍 | Klondike Solitaire</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#063f31">
+    <meta name="description" content="支援點選與拖曳、無限復原、提示與遊戲編號的現代經典接龍。">
+    <title>經典接龍｜Klondike Solitaire</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="style.css?v=20260824">
 </head>
 <body>
     <header class="game-header">
         <div class="game-header-inner">
-            <div class="brand">
-                <span class="brand-icon" aria-hidden="true">🃏</span>
-                <h1>經典接龍</h1>
-                <span id="game-number" title="點擊切換遊戲編號 (1-32000，每局皆可解)">#1</span>
-            </div>
-            <div class="stats">
-                <div class="stat">
-                    <span class="stat-label">移動</span>
-                    <span class="stat-value" id="moves">0</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">時間</span>
-                    <span class="stat-value" id="timer">00:00</span>
+            <div class="brand" aria-label="經典接龍">
+                <span class="brand-mark" aria-hidden="true"><span>♠</span><span>♥</span></span>
+                <div class="brand-copy">
+                    <h1>經典接龍</h1>
+                    <button id="game-number" class="game-number" type="button" title="選擇遊戲編號（1–32000）" aria-label="目前遊戲編號 1，點擊更換">第 1 局</button>
                 </div>
             </div>
-            <div class="actions">
-                <div class="action-group">
-                    <button id="new-game" class="btn btn-primary" title="開始新遊戲 (N)">新遊戲</button>
-                    <button id="undo-btn" class="btn" title="復原上一步 (Ctrl+Z)">↶ 復原</button>
-                    <button id="hint-toggle" class="btn btn-icon" title="提示可移動的牌 (H)" aria-label="提示">💡</button>
+
+            <div class="session-stats" aria-label="本局資訊">
+                <div class="session-stat">
+                    <span class="session-stat-label">移動</span>
+                    <strong class="session-stat-value" id="moves" aria-live="polite">0</strong>
                 </div>
-                <div class="action-group">
-                    <button id="zoom-out" class="btn btn-icon" title="縮小" aria-label="縮小">−</button>
-                    <button id="zoom-in" class="btn btn-icon" title="放大" aria-label="放大">+</button>
-                </div>
-                <div class="action-group">
-                    <button id="difficulty-toggle" class="btn btn-icon" title="難度: 簡單" aria-label="切換難度">📋</button>
-                    <button id="theme-toggle" class="btn btn-icon" title="切換明/暗主題 (T)" aria-label="主題">🌙</button>
-                    <button id="sound-toggle" class="btn btn-icon" title="開啟音效" aria-label="音效">🔇</button>
-                    <button id="stats-btn" class="btn btn-icon" title="查看統計" aria-label="統計">📊</button>
-                    <button id="challenge-btn" class="btn btn-icon" title="計時挑戰" aria-label="挑戰">⏱️</button>
+                <span class="stat-divider" aria-hidden="true"></span>
+                <div class="session-stat">
+                    <span class="session-stat-label">時間</span>
+                    <strong class="session-stat-value" id="timer">00:00</strong>
                 </div>
             </div>
+
+            <nav class="actions" aria-label="遊戲操作">
+                <div class="action-group primary-actions" role="group" aria-label="主要操作">
+                    <button id="new-game" class="btn btn-primary" type="button" title="開始新遊戲（N）">＋ 新遊戲</button>
+                    <button id="undo-btn" class="btn" type="button" title="復原上一步（Ctrl 或 Command + Z）">↶ 復原</button>
+                    <button id="hint-toggle" class="btn" type="button" title="提示可移動的牌（H）" aria-label="提示可移動的牌" aria-pressed="false">💡 提示</button>
+                    <button id="mobile-more-toggle" class="btn mobile-more-toggle" type="button" aria-label="顯示更多工具" aria-controls="secondary-actions" aria-expanded="false">••• 更多</button>
+                </div>
+
+                <div id="secondary-actions" class="action-group secondary-actions" role="group" aria-label="更多工具">
+                    <button id="zoom-out" class="btn btn-icon tool-zoom-out" type="button" title="縮小牌面" aria-label="縮小牌面">−</button>
+                    <button id="zoom-in" class="btn btn-icon tool-zoom-in" type="button" title="放大牌面" aria-label="放大牌面">＋</button>
+                    <button id="difficulty-toggle" class="btn tool-difficulty" type="button" title="難度：每次翻 1 張" aria-label="切換發牌張數" aria-pressed="false">翻 1</button>
+                    <button id="theme-toggle" class="btn btn-icon tool-theme" type="button" title="切換明暗主題（T）" aria-label="切換明暗主題" aria-pressed="false">🌙</button>
+                    <button id="sound-toggle" class="btn btn-icon tool-sound" type="button" title="開啟音效" aria-label="切換音效" aria-pressed="false">🔇</button>
+                    <button id="stats-btn" class="btn btn-icon tool-stats" type="button" title="查看統計" aria-label="查看統計">▥</button>
+                    <button id="challenge-btn" class="btn btn-icon tool-challenge" type="button" title="計時挑戰" aria-label="開啟計時挑戰">⏱</button>
+                </div>
+            </nav>
         </div>
     </header>
 
-    <div class="game-container">
-        <main class="game-board">
+    <main class="game-container">
+        <section class="game-board" aria-label="經典接龍牌桌">
+            <div class="board-guide" aria-hidden="true">
+                <span>點一下選牌，再點目的地</span>
+                <span class="guide-divider">·</span>
+                <span>也可以直接拖曳</span>
+            </div>
+
             <div class="top-area">
-                <div class="stock-waste">
-                    <div id="stock" class="card-pile stock" title="點擊發牌"></div>
-                    <div id="waste" class="card-pile waste"></div>
+                <div class="stock-waste" aria-label="牌庫與廢牌">
+                    <div id="stock" class="card-pile stock" role="button" tabindex="0" aria-label="牌庫，點擊翻牌" title="點擊翻牌"></div>
+                    <div id="waste" class="card-pile waste" aria-label="廢牌堆"></div>
                 </div>
-                <div class="foundations">
-                    <div id="foundation-0" class="card-pile foundation" data-suit="♠"></div>
-                    <div id="foundation-1" class="card-pile foundation" data-suit="♥"></div>
-                    <div id="foundation-2" class="card-pile foundation" data-suit="♦"></div>
-                    <div id="foundation-3" class="card-pile foundation" data-suit="♣"></div>
+                <div class="foundations" aria-label="四個基礎牌堆">
+                    <div id="foundation-0" class="card-pile foundation" data-suit="♠" role="button" tabindex="0" aria-label="黑桃基礎牌堆"></div>
+                    <div id="foundation-1" class="card-pile foundation" data-suit="♥" role="button" tabindex="0" aria-label="紅心基礎牌堆"></div>
+                    <div id="foundation-2" class="card-pile foundation" data-suit="♦" role="button" tabindex="0" aria-label="方塊基礎牌堆"></div>
+                    <div id="foundation-3" class="card-pile foundation" data-suit="♣" role="button" tabindex="0" aria-label="梅花基礎牌堆"></div>
                 </div>
             </div>
 
-            <div class="tableau">
-                <div id="tableau-0" class="card-pile tableau-pile"></div>
-                <div id="tableau-1" class="card-pile tableau-pile"></div>
-                <div id="tableau-2" class="card-pile tableau-pile"></div>
-                <div id="tableau-3" class="card-pile tableau-pile"></div>
-                <div id="tableau-4" class="card-pile tableau-pile"></div>
-                <div id="tableau-5" class="card-pile tableau-pile"></div>
-                <div id="tableau-6" class="card-pile tableau-pile"></div>
+            <div class="tableau" aria-label="七列接龍牌堆">
+                <div id="tableau-0" class="card-pile tableau-pile" role="button" tabindex="0" aria-label="第 1 列"></div>
+                <div id="tableau-1" class="card-pile tableau-pile" role="button" tabindex="0" aria-label="第 2 列"></div>
+                <div id="tableau-2" class="card-pile tableau-pile" role="button" tabindex="0" aria-label="第 3 列"></div>
+                <div id="tableau-3" class="card-pile tableau-pile" role="button" tabindex="0" aria-label="第 4 列"></div>
+                <div id="tableau-4" class="card-pile tableau-pile" role="button" tabindex="0" aria-label="第 5 列"></div>
+                <div id="tableau-5" class="card-pile tableau-pile" role="button" tabindex="0" aria-label="第 6 列"></div>
+                <div id="tableau-6" class="card-pile tableau-pile" role="button" tabindex="0" aria-label="第 7 列"></div>
             </div>
-        </main>
+        </section>
+    </main>
 
-        <!-- 勝利畫面 -->
-        <div id="win-modal" class="modal hidden">
-            <div class="modal-content">
-                <h2>🎉 恭喜過關！</h2>
-                <p>移動次數: <span id="final-moves">0</span></p>
-                <p>完成時間: <span id="final-time">00:00</span></p>
-                <button id="play-again" class="btn btn-large">再玩一次</button>
+    <div id="game-status" class="sr-only" aria-live="polite"></div>
+
+    <div id="win-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="win-title">
+        <div class="modal-content celebration-content">
+            <span class="modal-kicker">本局完成</span>
+            <h2 id="win-title">恭喜過關！</h2>
+            <div class="result-summary">
+                <div><strong id="final-moves">0</strong><span>移動次數</span></div>
+                <div><strong id="final-time">00:00</strong><span>完成時間</span></div>
             </div>
+            <button id="play-again" class="btn btn-primary btn-large" type="button">再玩一局</button>
         </div>
+    </div>
 
-        <!-- 死局警告 -->
-        <div id="deadlock-modal" class="modal hidden">
-            <div class="modal-content deadlock-content">
-                <h2>⚠️ 無路可走</h2>
-                <p>目前沒有可行的移動了。</p>
-                <p class="deadlock-hint">你可以嘗試復原幾步，或開始新遊戲。</p>
-                <div class="deadlock-buttons">
-                    <button id="deadlock-undo" class="btn">↶ 復原一步</button>
-                    <button id="deadlock-new" class="btn btn-primary">新遊戲</button>
-                    <button id="deadlock-close" class="btn btn-secondary">繼續觀察</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 選擇遊戲編號對話框 -->
-        <div id="game-select-modal" class="modal hidden">
-            <div class="modal-content">
-                <h2>🎮 選擇遊戲</h2>
-                <p>輸入遊戲編號 (1-32000)，或留空隨機開始</p>
-                <p class="modal-hint">系統會自動確保每局皆可解</p>
-                <input type="number" id="game-number-input" min="1" max="32000" placeholder="遊戲編號">
-                <div class="modal-buttons">
-                    <button id="game-select-ok" class="btn btn-primary">開始遊戲</button>
-                    <button id="game-select-cancel" class="btn btn-secondary">取消</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 統計對話框 -->
-        <div id="stats-modal" class="modal hidden">
-            <div class="modal-content glass">
-                <h2>📊 遊戲統計</h2>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-value" id="stat-games">0</span>
-                        <span class="stat-label">總遊戲數</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="stat-wins">0</span>
-                        <span class="stat-label">勝利次數</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="stat-winrate">0%</span>
-                        <span class="stat-label">勝率</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="stat-best-time">--:--</span>
-                        <span class="stat-label">最快通關</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="stat-best-moves">-</span>
-                        <span class="stat-label">最少移動</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="stat-streak">0</span>
-                        <span class="stat-label">最高連勝</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="stat-current-streak">0</span>
-                        <span class="stat-label">目前連勝</span>
-                    </div>
-                </div>
-                <div class="modal-buttons">
-                    <button id="stats-clear" class="btn btn-secondary">清除統計</button>
-                    <button id="stats-close" class="btn btn-primary">關閉</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 計時挑戰對話框 -->
-        <div id="challenge-modal" class="modal hidden">
-            <div class="modal-content glass">
-                <h2>⏱️ 計時挑戰</h2>
-                <p>在限時內完成遊戲，挑战你的最快速度！</p>
-                <div class="challenge-options">
-                    <button class="btn challenge-time" data-minutes="1">1 分鐘</button>
-                    <button class="btn challenge-time" data-minutes="2">2 分鐘</button>
-                    <button class="btn challenge-time" data-minutes="3">3 分鐘</button>
-                    <button class="btn challenge-time" data-minutes="5">5 分鐘</button>
-                </div>
-                <p class="challenge-score hidden" id="challenge-score">
-                    剩餘時間: <span id="challenge-timer">00:00</span>
-                </p>
-                <div class="modal-buttons">
-                    <button id="challenge-close" class="btn btn-secondary">關閉</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 挑戰結果 modal（取代 alert） -->
-        <div id="challenge-result-modal" class="modal hidden">
-            <div class="modal-content">
-                <h2 id="challenge-result-title">🎉 挑戰成功！</h2>
-                <p id="challenge-result-message">用時 00:00，移動 0 次</p>
-                <div class="modal-buttons">
-                    <button id="challenge-result-new" class="btn btn-primary">再玩一次</button>
-                    <button id="challenge-result-close" class="btn btn-secondary">關閉</button>
-                </div>
+    <div id="deadlock-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="deadlock-title">
+        <div class="modal-content deadlock-content">
+            <span class="modal-kicker warning">牌局提醒</span>
+            <h2 id="deadlock-title">目前無路可走</h2>
+            <p>這個狀態暫時沒有可行移動。</p>
+            <p class="modal-hint">可以先復原一步重新思考，或直接開始新遊戲。</p>
+            <div class="modal-buttons">
+                <button id="deadlock-undo" class="btn btn-primary" type="button">↶ 復原一步</button>
+                <button id="deadlock-new" class="btn" type="button">新遊戲</button>
+                <button id="deadlock-close" class="btn btn-quiet" type="button">返回牌桌</button>
             </div>
         </div>
     </div>
 
-    <script src="game.js?v=20260510b"></script>
+    <div id="game-select-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="game-select-title">
+        <div class="modal-content">
+            <span class="modal-kicker">遊戲編號</span>
+            <h2 id="game-select-title">選擇一副牌局</h2>
+            <p>輸入 1–32000，留空則隨機開始。</p>
+            <label class="sr-only" for="game-number-input">遊戲編號</label>
+            <input type="number" id="game-number-input" min="1" max="32000" inputmode="numeric" placeholder="例如：2026">
+            <p class="modal-hint">每副牌局都會先經過可解性檢查。</p>
+            <div class="modal-buttons">
+                <button id="game-select-ok" class="btn btn-primary" type="button">開始遊戲</button>
+                <button id="game-select-cancel" class="btn btn-quiet" type="button">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="stats-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+        <div class="modal-content stats-content">
+            <span class="modal-kicker">歷史表現</span>
+            <h2 id="stats-title">遊戲統計</h2>
+            <div class="stats-grid">
+                <div class="stat-item"><strong id="stat-games">0</strong><span>總遊戲數</span></div>
+                <div class="stat-item"><strong id="stat-wins">0</strong><span>勝利次數</span></div>
+                <div class="stat-item"><strong id="stat-winrate">0%</strong><span>勝率</span></div>
+                <div class="stat-item"><strong id="stat-best-time">--:--</strong><span>最快通關</span></div>
+                <div class="stat-item"><strong id="stat-best-moves">-</strong><span>最少移動</span></div>
+                <div class="stat-item"><strong id="stat-streak">0</strong><span>最高連勝</span></div>
+                <div class="stat-item"><strong id="stat-current-streak">0</strong><span>目前連勝</span></div>
+            </div>
+            <div class="modal-buttons">
+                <button id="stats-clear" class="btn btn-danger-quiet" type="button">清除統計</button>
+                <button id="stats-close" class="btn btn-primary" type="button">完成</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="challenge-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-title">
+        <div class="modal-content">
+            <span class="modal-kicker">限時玩法</span>
+            <h2 id="challenge-title">計時挑戰</h2>
+            <p>選擇倒數時間，在時間結束前完成牌局。</p>
+            <div class="challenge-options" role="group" aria-label="挑戰時間">
+                <button class="btn challenge-time" type="button" data-minutes="1">1 分鐘</button>
+                <button class="btn challenge-time" type="button" data-minutes="2">2 分鐘</button>
+                <button class="btn challenge-time" type="button" data-minutes="3">3 分鐘</button>
+                <button class="btn challenge-time" type="button" data-minutes="5">5 分鐘</button>
+            </div>
+            <p class="challenge-score hidden" id="challenge-score" aria-live="polite">剩餘時間：<strong id="challenge-timer">00:00</strong></p>
+            <div class="modal-buttons">
+                <button id="challenge-close" class="btn btn-quiet" type="button">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="challenge-result-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-result-title">
+        <div class="modal-content">
+            <span class="modal-kicker">挑戰結果</span>
+            <h2 id="challenge-result-title">挑戰成功！</h2>
+            <p id="challenge-result-message">用時 00:00，移動 0 次</p>
+            <div class="modal-buttons">
+                <button id="challenge-result-new" class="btn btn-primary" type="button">再玩一次</button>
+                <button id="challenge-result-close" class="btn btn-quiet" type="button">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js?v=20260824"></script>
 </body>
 </html>
