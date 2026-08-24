@@ -2046,14 +2046,24 @@ class Solitaire {
             const gap = this.parseCSSValue('--pile-gap') || 2;
             cardWidth = Math.max(40, (tableauWidth - gap * 6) / 7);
         } else {
-            const fieldWidth = Math.min(840, Math.max(560, boardWidth - 48));
-            const gap = Math.max(8, Math.min(14, fieldWidth * 0.012));
+            const wideDesktop = window.innerWidth >= 1200;
+            const renderedPlayfield = document.querySelector('.tableau')?.getBoundingClientRect().width;
+            const fieldWidth = wideDesktop
+                ? (renderedPlayfield || Math.min(window.innerWidth * 0.68, 1960))
+                : Math.min(840, Math.max(560, boardWidth - 48));
+            const gap = wideDesktop
+                ? Math.max(16, Math.min(30, window.innerWidth * 0.01))
+                : Math.max(8, Math.min(14, fieldWidth * 0.012));
             const fittedWidth = (fieldWidth - gap * 6) / 7;
-            cardWidth = Math.min(fittedWidth, 96 * this.zoomLevel);
+            const baseCardWidth = wideDesktop
+                ? Math.max(100, Math.min(168, window.innerWidth * 0.056))
+                : 96;
+            cardWidth = Math.min(fittedWidth, baseCardWidth * this.zoomLevel);
         }
 
         const cardHeight = cardWidth * 1.4;
-        const tableauOffset = Math.max(18, Math.min(38, cardWidth * 0.34 * this.zoomLevel));
+        const maxOffset = window.innerWidth >= 1200 ? 50 : 38;
+        const tableauOffset = Math.max(18, Math.min(maxOffset, cardWidth * 0.34 * this.zoomLevel));
         root.style.setProperty('--card-width', `${cardWidth}px`);
         root.style.setProperty('--card-height', `${cardHeight}px`);
         root.style.setProperty('--card-radius', `${Math.max(6, cardWidth * 0.094)}px`);

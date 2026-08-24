@@ -769,6 +769,35 @@ input:focus-visible,
 .falling-card.black { color: var(--black); }
 .foundation.highlight { border-color: var(--gold); box-shadow: 0 0 24px rgba(245,198,93,0.55); }
 
+/* Wide desktop: let the table breathe instead of freezing at 840px */
+@media (min-width: 1200px) {
+    :root {
+        --container-width: 2800px;
+        --playfield-width: min(68vw, 1960px);
+        --card-width: clamp(100px, 5.6vw, 168px);
+        --card-height: calc(var(--card-width) * 1.4);
+        --card-radius: clamp(9px, 0.45vw, 14px);
+        --pile-gap: clamp(16px, 1.1vw, 28px);
+        --tableau-offset: clamp(32px, 1.8vw, 50px);
+        --font-rank: clamp(20px, 1.1vw, 28px);
+        --font-suit: clamp(16px, 0.82vw, 21px);
+        --font-center: clamp(42px, 2.5vw, 72px);
+    }
+
+    .game-container {
+        width: min(96vw, var(--container-width));
+    }
+
+    .top-area,
+    .tableau {
+        width: var(--playfield-width);
+    }
+
+    .tableau {
+        justify-content: space-between;
+    }
+}
+
 /* Tablet */
 @media (max-width: 980px) {
     :root {

@@ -2,6 +2,8 @@ const { test, expect } = require('@playwright/test');
 
 const targets = [
   { name: 'desktop', width: 1440, height: 1000 },
+  { name: 'wide-desktop', width: 2560, height: 1295 },
+  { name: 'ultrawide', width: 3440, height: 1440 },
   { name: 'ipad', width: 1024, height: 1366 },
   { name: 'mobile', width: 390, height: 844 }
 ];
